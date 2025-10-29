@@ -18,11 +18,7 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    protected $fillable = [ 'name', 'email', 'password', 'dni', 'codigomodular' ];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -45,5 +41,22 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+     // RELACIONES: Lo que un usuario "TIENE"
+    
+     public function datos() {
+        return $this->hasMany(DatoUnificado::class);
+    }
+
+    public function constancias() {
+        return $this->hasMany(Constancia::class);
+    }
+
+    public function metas() {
+        return $this->hasMany(Meta::class);
+    }
+
+    public function acciones() {
+        return $this->hasMany(AccionUsuario::class);
     }
 }

@@ -1,11 +1,13 @@
+
+
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'ExpedientesPro') }}</title>
+
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
@@ -156,11 +158,13 @@
             box-sizing: border-box;
         }
     </style>
+    @stack('head')
 </head>
-<body class="bg-gray-50 font-sans antialiased">
+<body class="bg-gray-100 font-sans antialiased"> {{-- Un fondo neutro para el body --}}
     <div id="app">
-        <!-- Navbar moderna manteniendo la funcionalidad original -->
-        <nav class="bg-white shadow-lg border-b border-gray-200">
+        
+        {{-- Aquí va tu NAV completo --}}
+        <nav class="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50">
             <div class="container mx-auto px-1">
                 <div class="flex justify-between items-center py-4">
                     <!-- Brand/Logo -->
@@ -204,7 +208,7 @@
                                 </svg>
                                 Dashboard
                             </a>
-                            <a href="" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                            <a href="{{ route('ingesta.create') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                                 </svg>
@@ -355,12 +359,16 @@
             </div>
         </nav>
 
+
         <!-- Main Content -->
-        <main class="min-h-screen">
+        {{-- Este main ahora tendrá el fondo y contendrá todo lo demás --}}
+        <main class="w-full">
             @yield('content')
         </main>
+
     </div>
 
+    
     <!-- JavaScript para funcionalidad del dropdown y menú móvil -->
     <script>
         function toggleDropdown() {
@@ -394,5 +402,6 @@
             }
         });
     </script>
+    @stack('scripts') {{-- Para los scripts específicos de cada página --}}
 </body>
 </html>

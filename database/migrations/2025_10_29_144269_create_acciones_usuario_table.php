@@ -16,9 +16,14 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('tipo_accion');
             
-            // Esto crea las columnas 'referencia_id' (BIGINT) y 'referencia_tipo' (VARCHAR)
-            $table->morphs('referencia'); 
-            
+            // ...
+            $table->unsignedBigInteger('referencia_id');
+            $table->string('referencia_tipo');
+
+            // Añadimos un índice manualmente para que las búsquedas sean rápidas,
+            // algo que morphs() hacía automáticamente.
+            $table->index(['referencia_id', 'referencia_tipo']);
+            // ...
             $table->timestamps();
         });
     }

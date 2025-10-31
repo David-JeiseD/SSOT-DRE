@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class ColumnaMaestra extends Model
 {
     use HasFactory;
+    protected $table = 'columnas_maestras';
 
     protected $guarded = []; // Permite asignación masiva de todos los campos
 

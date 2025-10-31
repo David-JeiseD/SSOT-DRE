@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class DatoUnificado extends Model
 {
     use HasFactory;
-    
+    protected $table = 'datos_unificados';
     protected $guarded = [];
     protected $casts = ['fecha_registro' => 'date'];
 

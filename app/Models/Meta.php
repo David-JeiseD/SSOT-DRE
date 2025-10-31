@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Meta extends Model
 {
     use HasFactory;
+    protected $table = 'metas';
     
     protected $guarded = [];
 

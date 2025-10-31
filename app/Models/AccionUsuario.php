@@ -19,7 +19,8 @@ class AccionUsuario extends Model
     }
 
     // RELACIÓN POLIMÓRFICA: La magia de 'referencia'
-    public function referencia() {
+    public function referencia()
+    {
         return $this->morphTo();
     }
 }

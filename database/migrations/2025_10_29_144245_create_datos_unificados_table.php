@@ -17,10 +17,11 @@ return new class extends Migration
             $table->foreignId('columna_maestra_id')->constrained('columnas_maestras')->onDelete('cascade');
             $table->text('valor');
             $table->date('fecha_registro');
+            $table->uuid('id_fila_origen'); // Columna para agrupar datos de la misma fila del Excel
             $table->timestamps();
 
-            // Índices para mejorar el rendimiento de las búsquedas
             $table->index('fecha_registro');
+            $table->unique(['user_id', 'columna_maestra_id', 'fecha_registro', 'id_fila_origen'], 'dato_unico_por_fila');
         });
     }
 

@@ -9,6 +9,7 @@ class Constancia extends Model
 {
     use HasFactory;
     
+    protected $table = 'constancias';
     protected $guarded = [];
 
     public function user() {

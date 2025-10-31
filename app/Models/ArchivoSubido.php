@@ -9,6 +9,7 @@ class ArchivoSubido extends Model
 {
     use HasFactory;
     
+    protected $table = 'archivos_subidos';
     protected $guarded = [];
     
     public function subidoPor() {

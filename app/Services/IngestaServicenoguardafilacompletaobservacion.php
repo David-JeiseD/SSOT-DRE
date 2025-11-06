@@ -122,21 +122,25 @@ class IngestaService
         return $map;
     }
 
-
-
-
-        /**
-     * 🔥 REFACTORIZADO FINAL: El director de orquesta.
-     */
     private function processDataRows(array $allRows, int $headerRowIndex, User $usuario, array $columnMap): array
     {
-        $counters = ['filas_procesadas' => 0, 'filas_omitidas' => 0, 'registros_creados' => 0];
+        $createdCount = 0;
+        $updatedCount = 0;
+        $skippedCount = 0;
         $mesesMap = [
             'ene' => 1, 'enero' => 1, 'feb' => 2, 'febrero' => 2, 'mar' => 3, 'marzo' => 3,
             'abr' => 4, 'abril' => 4, 'may' => 5, 'mayo' => 5, 'jun' => 6, 'junio' => 6,
             'jul' => 7, 'julio' => 7, 'ago' => 8, 'agosto' => 8, 'sep' => 9, 'septiembre' => 9, 'set' => 9,
             'oct' => 10, 'octubre' => 10, 'nov' => 11, 'noviembre' => 11, 'dic' => 12, 'diciembre' => 12
         ];
+        
+        $currentYear = null;
+    
+        $observacionColumna = ColumnaMaestra::firstOrCreate(
+            ['nombre_normalizado' => 'observacion'],
+            ['nombre_display' => 'Observacion']
+        );
+    
         $keyColumnNames = [
             $this->normalizeColumnName('T.REMUN'),
             $this->normalizeColumnName('T.DESC'),
@@ -144,135 +148,98 @@ class IngestaService
         ];
         $keyColumnIds = ColumnaMaestra::whereIn('nombre_normalizado', $keyColumnNames)
             ->pluck('id')->toArray();
-        
-        $currentYear = null;
-
+    
         foreach ($allRows as $rowIndex => $row) {
-            if ($rowIndex <= $headerRowIndex || count(array_filter($row)) < 1) continue;
-
-            $yearValue = trim(strval($row['C'] ?? ''));
-            if (!empty($yearValue) && is_numeric($yearValue)) $currentYear = $yearValue;
-            
+            if ($rowIndex <= $headerRowIndex) continue;
+            if (count(array_filter($row)) < 1) continue;
+    
+            $yearValue = trim(strval($row['A'] ?? ''));
             $monthRaw = trim(strval($row['B'] ?? ''));
+            $monthValue = strtolower(substr(Str::ascii($monthRaw), 0, 3));
+    
+            if (!empty($yearValue) && is_numeric($yearValue)) $currentYear = $yearValue;
+            if (empty($currentYear) || !isset($mesesMap[$monthValue])) continue;
+            
+            $fechaRegistro = Carbon::createFromDate($currentYear, $mesesMap[$monthValue], 1)->toDateString();
             
             $fullRowText = strtoupper(trim(implode(' ', array_filter($row))));
             $frasesClave = ['PLANILLA DETERIORADA', 'NO FIGURA', 'NO ENCONTRADO', 'SIN REGISTRO', 'DOCUMENTO INCOMPLETO', 'ERROR EN DATOS', 'PLANTILLA NO ENCONTRADA', 'NO EXISTE PLANILLA EN SEDE', 'DOCUMENTO DAÑADO', 'ARCHIVO CORRUPTO', 'PLANILLA ANULADO', 'NO FIGURA NOMBRE EN LA PLANILLA'];
-            
             $esObservacion = false;
+            $fraseEncontrada = null;
+    
             foreach ($frasesClave as $frase) {
                 if (str_contains($fullRowText, $frase)) {
-                    $this->handleObservationRow($currentYear, $monthRaw, $frase, $mesesMap, $usuario, $counters);
                     $esObservacion = true;
+                    $fraseEncontrada = $frase;
                     break;
                 }
             }
-            
-            if (!$esObservacion) {
-                $this->handleNumericRow($row, $currentYear, $monthRaw, $mesesMap, $usuario, $columnMap, $keyColumnIds, $counters);
-            }
-        }
-        
-        return $counters;
-    }
-
-/**
- * 🔥 CORREGIDO: Usa Hashing DETERMINISTA para el id_fila_origen.
- */
-    private function handleNumericRow($row, $currentYear, $monthRaw, $mesesMap, $usuario, $columnMap, $keyColumnIds, &$counters)
-    {
-        $monthValue = strtolower(substr(Str::ascii($monthRaw), 0, 3));
-        if (empty($currentYear) || !isset($mesesMap[$monthValue])) { $counters['filas_omitidas']++; return; }
-        $firstCell = trim(strval(reset($row)));
-        if (empty($firstCell) || !is_numeric($firstCell)) { $counters['filas_omitidas']++; return; }
-
-        $datosFilaUnificados = [];
-        $columnasYaUsadas = [];
-        foreach($row as $colLetter => $value) {
-            if (!isset($columnMap[$colLetter])) continue;
-            $colId = $columnMap[$colLetter];
-            $valLimpio = trim(strval($value));
-            if ($valLimpio !== '' && !in_array($colId, $columnasYaUsadas)) {
-                $datosFilaUnificados[$colId] = $valLimpio;
-                $columnasYaUsadas[] = $colId;
-            }
-        }
-
-        if (!$this->isRowSignificant($datosFilaUnificados, $keyColumnIds)) { $counters['filas_omitidas']++; return; }
-        
-
-        // --- 🔥 NUEVA LÓGICA DE HASHING DETERMINISTA (CORREGIDA) ---
-        // 1. Creamos un array solo con los datos de las columnas clave para el hash.
-        $datosParaHash = [];
-        foreach ($keyColumnIds as $keyId) {
-            // Usamos el valor si existe, o una cadena vacía si no, para asegurar consistencia.
-            $datosParaHash[$keyId] = $datosFilaUnificados[$keyId] ?? '';
-        }
-
-        // 2. Ordenamos por clave (ID de columna) para que el orden no afecte el resultado.
-        ksort($datosParaHash);
-
-        // 3. Generamos el hash SÓLO con los datos clave. Este hash será el mismo
-        //    incluso si se añaden columnas nuevas como FONAVI en subidas posteriores.
-        $idFilaOrigen = md5($currentYear . $monthRaw . implode('|', $datosParaHash));
-        // --- 🔥 FIN DE LA NUEVA LÓGICA ---
-
-        $fechaRegistro = Carbon::createFromDate($currentYear, $mesesMap[$monthValue], 1)->toDateString();
-        $filaTuvoNuevosDatos = false;
-
-        // El resto del bucle `foreach` para guardar los datos permanece EXACTAMENTE IGUAL.
-        foreach ($datosFilaUnificados as $columnaMaestraId => $valor) {
-            $datoUnificado = DatoUnificado::firstOrCreate(
-                // Esta parte es la clave: busca usando el idFilaOrigen ahora estable.
-                ['user_id' => $usuario->id, 'columna_maestra_id' => $columnaMaestraId, 'fecha_registro' => $fechaRegistro, 'id_fila_origen' => $idFilaOrigen],
-                ['valor' => $valor]
-            );
-            if ($datoUnificado->wasRecentlyCreated) {
-                $filaTuvoNuevosDatos = true;
-                $counters['registros_creados']++;
-            }
-        }
-
-        if ($filaTuvoNuevosDatos) $counters['filas_procesadas']++;
-        else $counters['filas_omitidas']++;
-    }
-
-
-/**
- * 🔥 CORREGIDO: Usa Hashing DETERMINISTA para el id_fila_origen.
-    */
-    private function handleObservationRow($currentYear, $monthRaw, $fraseEncontrada, $mesesMap, $usuario, &$counters)
-    {
-        $monthValue = strtolower(substr(Str::ascii($monthRaw), 0, 3));
-        if (empty($currentYear) || !isset($mesesMap[$monthValue])) { $counters['filas_omitidas']++; return; }
-
-        // --- LÓGICA DE HASHING DETERMINISTA ---
-        $idFilaOrigen = md5($currentYear . $monthRaw . $fraseEncontrada);
-        // --- FIN LÓGICA DE HASHING ---
-        
-        $fechaRegistro = Carbon::createFromDate($currentYear, $mesesMap[$monthValue], 1)->toDateString();
-        $anioColumna = ColumnaMaestra::firstOrCreate(['nombre_normalizado' => 'ano'], ['nombre_display' => 'AÑO']);
-        $mesColumna = ColumnaMaestra::firstOrCreate(['nombre_normalizado' => 'meses'], ['nombre_display' => 'MESES']);
-        $observacionColumna = ColumnaMaestra::firstOrCreate(['nombre_normalizado' => 'observacion'], ['nombre_display' => 'Observacion']);
-        
-        $filaTuvoNuevosDatos = false;
-        $datosParaGuardar = [$anioColumna->id => $currentYear, $mesColumna->id => $monthRaw, $observacionColumna->id => $fraseEncontrada];
-
-        foreach ($datosParaGuardar as $colId => $valor) {
-            $datoUnificado = DatoUnificado::firstOrCreate(
-                ['user_id' => $usuario->id, 'columna_maestra_id' => $colId, 'fecha_registro' => $fechaRegistro, 'id_fila_origen' => $idFilaOrigen],
-                ['valor' => $valor]
-            );
-            if ($datoUnificado->wasRecentlyCreated) {
-                $filaTuvoNuevosDatos = true;
-                $counters['registros_creados']++;
-            }
-        }
-
-        if ($filaTuvoNuevosDatos) $counters['filas_procesadas']++;
-        else $counters['filas_omitidas']++;
-    }
-
     
+            if ($esObservacion) {
+                $idFilaOrigenObservacion = Str::uuid()->toString();
+                $datoUnificado = DatoUnificado::firstOrCreate(
+                    ['user_id' => $usuario->id, 'columna_maestra_id' => $observacionColumna->id, 'fecha_registro' => $fechaRegistro, 'valor' => $fraseEncontrada],
+                    ['id_fila_origen' => $idFilaOrigenObservacion] 
+                );
+                if ($datoUnificado->wasRecentlyCreated) $createdCount++;
+                else $skippedCount++;
+            
+            } else {
+                $firstCell = trim(strval(reset($row)));
+                if (!empty($firstCell) && is_numeric($firstCell)) {
+                    
+                    $datosFilaUnificados = [];
+                    $columnasYaUsadas = [];
+                    foreach($row as $colLetter => $value) {
+                        if (!isset($columnMap[$colLetter])) continue;
+                        $colId = $columnMap[$colLetter];
+                        $valLimpio = trim(strval($value));
+                        if ($valLimpio !== '' && !in_array($colId, $columnasYaUsadas)) {
+                            $datosFilaUnificados[$colId] = $valLimpio;
+                            $columnasYaUsadas[] = $colId;
+                        }
+                    }
+                    
+                    if (!$this->isRowSignificant($datosFilaUnificados, $keyColumnIds)) {
+                        $skippedCount++;
+                    } else {
+                        $idFilaOrigen = Str::uuid()->toString();
+                        
+                        // --- 🔥 INICIO DE LA LÓGICA FINAL Y CORRECTA ---
+                        foreach ($datosFilaUnificados as $columnaMaestraId => $valor) {
+                            // La clave de unicidad es la combinación de usuario, columna y fecha.
+                            // El sistema buscará esta combinación. Si la encuentra, la actualiza. Si no, la crea.
+                            $datoUnificado = DatoUnificado::updateOrCreate(
+                                [
+                                    'user_id' => $usuario->id,
+                                    'columna_maestra_id' => $columnaMaestraId,
+                                    'fecha_registro' => $fechaRegistro,
+                                ],
+                                [
+                                    'valor' => $valor,
+                                    'id_fila_origen' => $idFilaOrigen, // El id de fila se actualiza para saber de dónde vino el último dato
+                                ]
+                            );
+    
+                            if ($datoUnificado->wasRecentlyCreated) $createdCount++;
+                            elseif ($datoUnificado->wasChanged()) $updatedCount++;
+                            else $skippedCount++;
+                        }
+                        // --- 🔥 FIN DE LA LÓGICA FINAL Y CORRECTA ---
+                    }
+                } else {
+                    $skippedCount++;
+                }
+            }
+        }
+    
+        return [
+            'creados' => $createdCount,
+            'actualizados' => $updatedCount,
+            'omitidos' => $skippedCount,
+        ];
+    }
+
 
     private function createAuditRecord(UploadedFile $file, User $subidoPor, array $resultado): void
     {
@@ -281,8 +248,8 @@ class IngestaService
             'subido_por_user_id' => $subidoPor->id,
             'nombre_original' => $file->getClientOriginalName(),
             'ruta_archivo' => $ruta,
-            'filas_procesadas' => $resultado['filas_procesadas'], // Clave actualizada
-            'filas_omitidas' => $resultado['filas_omitidas'],   // Clave actualizada
+            'filas_procesadas' => $resultado['creados'] + $resultado['actualizados'],
+            'filas_omitidas' => $resultado['omitidos'],
         ]);
     }
 

@@ -62,4 +62,20 @@ class UserController extends Controller
     {
         //
     }
+    public function buscar(Request $request)
+    {
+        $searchTerm = $request->query('q');
+
+        if (empty($searchTerm)) {
+            return response()->json([]);
+        }
+
+        $usuarios = \App\Models\User::where('name', 'LIKE', "%{$searchTerm}%")
+                                ->orWhere('dni', 'LIKE', "%{$searchTerm}%")
+                                ->select('id', 'name', 'dni') // Solo devolvemos los datos necesarios
+                                ->take(10) // Limitamos a 10 resultados para que sea rápido
+                                ->get();
+
+        return response()->json($usuarios);
+    }
 }

@@ -26,4 +26,9 @@ class DatoUnificado extends Model
     public function expedientes() {
         return $this->belongsToMany(Expediente::class, 'expediente_datos');
     }
+    public function filaOrigen()
+    {
+        // Una relación "hasMany" que devuelve todos los otros datos que comparten el mismo id_fila_origen.
+        return $this->hasMany(DatoUnificado::class, 'id_fila_origen', 'id_fila_origen');
+    }
 }

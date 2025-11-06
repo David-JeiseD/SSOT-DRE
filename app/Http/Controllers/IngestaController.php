@@ -53,9 +53,11 @@ class IngestaController extends Controller
                 auth()->user()
             );
 
-            // --- 🔥 MODIFICADO: Usamos las nuevas claves para un mensaje más claro ---
-            return redirect()->route('ingesta.create')
-                ->with('success', "Datos procesados. Se crearon {$resultado['creados']} nuevos registros, se actualizaron {$resultado['actualizados']} y se omitieron {$resultado['omitidos']} duplicados.");
+            $mensaje = "Archivo procesado. Se procesaron {$resultado['filas_procesadas']} filas nuevas. " .
+                   "Se crearon un total de {$resultado['registros_creados']} registros individuales. " .
+                   "Se omitieron {$resultado['filas_omitidas']} filas por ser duplicadas o no significativas.";
+
+            return redirect()->route('ingesta.create')->with('success', $mensaje);
 
         } catch (\Exception $e) {
             return back()->with('error', 'Error al procesar el archivo: ' . $e->getMessage())->withInput();

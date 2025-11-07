@@ -45,13 +45,13 @@ class GeneradorController extends Controller
      */
     public function previsualizar(Request $request)
     {
-        // 1. Validar los datos del formulario de filtros
+        // 1. Validar los datos del formulario de filtros (SIN CAMBIOS)
         $validated = $request->validate([
-        'user_id' => 'required|exists:users,id',
-        'fecha_desde' => 'required|date',
-        'fecha_hasta' => 'required|date|after_or_equal:fecha_desde',
-        'columnas' => 'required|array|min:1',
-        'columnas.*' => 'exists:columnas_maestras,id',
+            'user_id' => 'required|exists:users,id',
+            'fecha_desde' => 'required|date',
+            'fecha_hasta' => 'required|date|after_or_equal:fecha_desde',
+            'columnas' => 'required|array|min:1',
+            'columnas.*' => 'exists:columnas_maestras,id',
         ]);
         
         $usuario = User::findOrFail($validated['user_id']);
@@ -59,53 +59,71 @@ class GeneradorController extends Controller
         $fechaHasta = Carbon::parse($validated['fecha_hasta']);
         $columnasSeleccionadasIds = $validated['columnas'];
         
-        // 2. Obtener los nombres de las columnas que necesitamos mostrar
-        $columnasSeleccionadas = ColumnaMaestra::whereIn('id', $columnasSeleccionadasIds)
-            ->orderBy('id') // Ordenar por ID o por un campo de orden si lo tuvieras
-            ->get();
+        // 2. Obtener los modelos de las columnas seleccionadas
+        // 🔥 CAMBIO: Quitamos el orderBy('id') porque vamos a aplicar un orden personalizado.
+        $columnasSeleccionadas = ColumnaMaestra::whereIn('id', $columnasSeleccionadasIds)->get();
+
+        // 🔥 NUEVO: LÓGICA DE ORDENAMIENTO FIJO AÑADIDA AQUÍ
+        // Define los grupos de orden. Los nombres deben ser los 'nombre_normalizado'.
+        $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
+        $ordenFinal = ['ref_mov', 'reint_', 'neto_a_pagar'];
+
+        $columnasOrdenadas = $columnasSeleccionadas->sortBy(function ($columna) use ($ordenInicio, $ordenFinal) {
+            $nombre = $columna->nombre_normalizado;
+
+            // Buscamos en el grupo de INICIO
+            $posicionInicio = array_search($nombre, $ordenInicio);
+            if ($posicionInicio !== false) {
+                return $posicionInicio; // Devuelve 0, 1, 2...
+            }
+
+            // Buscamos en el grupo FINAL
+            $posicionFinal = array_search($nombre, $ordenFinal);
+            if ($posicionFinal !== false) {
+                return 1000 + $posicionFinal; // Devuelve 1000, 1001...
+            }
+
+            // Si no está en INICIO ni en FINAL, es "Relleno".
+            return 500;
+        });
+        // 🔥 FIN DE LA LÓGICA DE ORDENAMIENTO
         
-        // 3. Obtener TODOS los datos relevantes de la base de datos
+        // 3. Obtener TODOS los datos relevantes de la base de datos (SIN CAMBIOS)
         $datosCrudos = DatoUnificado::where('user_id', $usuario->id)
             ->whereIn('columna_maestra_id', $columnasSeleccionadasIds)
             ->whereBetween('fecha_registro', [$fechaDesde, $fechaHasta])
             ->orderBy('fecha_registro', 'asc')
             ->get();
         
-        // 4. "Pivotar" los datos: transformar la lista larga en una tabla
+        // 4. "Pivotar" los datos: transformar la lista larga en una tabla (SIN CAMBIOS)
         $tablaPrevia = [];
         foreach ($datosCrudos as $dato) {
-            // 🔥 CORRECCIÓN: La clave de agrupación es AHORA SOLO LA FECHA.
             $claveFila = $dato->fecha_registro->format('Y-m'); 
-            
             if (!isset($tablaPrevia[$claveFila])) {
                 $tablaPrevia[$claveFila] = [
                     'fecha' => $dato->fecha_registro,
                     'datos' => []
                 ];
             }
-            
-            // Si ya existe un valor para esta columna en este mes, lo concatenamos (o lo sobreescribimos).
-            // Para la vista, sobreescribir suele ser suficiente.
             $tablaPrevia[$claveFila]['datos'][$dato->columna_maestra_id] = $dato->valor;
         }
         
-        // Ordenar la tabla final por fecha
         uasort($tablaPrevia, function ($a, $b) {
             return $a['fecha'] <=> $b['fecha'];
         });
         
-        // 🔥 NUEVO: Obtener el ID de la columna Observacion
         $observacionColumnaId = ColumnaMaestra::where('nombre_normalizado', 'observacion')->value('id');
         
         // 5. Pasar los datos a la nueva vista de previsualización
         return view('generador.previsualizacion', [
             'usuario' => $usuario,
-            'columnas' => $columnasSeleccionadas,
+            // 🔥 CAMBIO: Pasamos la colección YA ORDENADA a la vista.
+            'columnas' => $columnasOrdenadas, 
             'tabla' => $tablaPrevia,
             'requestData' => $validated, 
-            'observacionColumnaId' => $observacionColumnaId, // <-- Pasamos el ID a la vista
+            'observacionColumnaId' => $observacionColumnaId,
         ]);
-    }  
+    }
     /**
      * PASO 4: Guarda el expediente y fuerza la descarga del archivo Excel.
      */

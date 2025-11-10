@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\TipoDocumentoController;
 use App\Http\Controllers\Admin\MetaController;
 use App\Http\Controllers\ReporteMetasController;
 use App\Http\Controllers\DniController;
+use App\Http\Controllers\Api\ConstanciaController;
+use App\Http\Controllers\Api\DatoCrudoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,17 +39,14 @@ Route::get('/', function () {
 // Rutas de Autenticación generadas por laravel/ui
 Auth::routes();
 
-// Ruta de Home (a menudo se coloca fuera del grupo de middleware 'auth' 
-// para que el middleware 'guest' pueda redirigir aquí si ya estás logueado)
 Route::get('/home', [HomeController::class, 'index'])->name('home');
-
 
 // --- Rutas que requieren que el usuario esté autenticado ---
 Route::middleware(['auth'])->group(function () {
 
-    // --- API Interna para búsqueda de usuarios ---
-    Route::get('/api/usuarios/buscar', [UserController::class, 'buscar'])->name('api.usuarios.buscar');
 
+    Route::get('/usuarios/buscar', [UserController::class, 'buscar'])->name('api.usuarios.buscar');
+    Route::get('/constancias/buscar', [ConstanciaController::class, 'buscar'])->name('api.constancias.buscar');
     // --- API Interna para consulta de DNI ---
     Route::post('/consultar-dni', [DniController::class, 'obtenerDatos'])->name('dni.obtener');
 
@@ -64,18 +63,10 @@ Route::middleware(['auth'])->group(function () {
         
         // Grupo de rutas para el Generador de Documentos
         Route::prefix('generador')->name('generador.')->group(function () {
-        
-            // Paso 1: Muestra la página inicial para buscar un usuario.
             Route::get('/', [GeneradorController::class, 'index'])->name('index'); 
-            
-            // Paso 2: Procesa la búsqueda y muestra el resumen de datos + formulario de filtro.
             Route::post('/buscar', [GeneradorController::class, 'buscarDatos'])->name('buscar');
-
-            // Paso 3: Procesa el filtro y muestra la previsualización del reporte.
             Route::post('/previsualizar', [GeneradorController::class, 'previsualizar'])->name('previsualizar');
-
-            // Paso 4: Procesa la confirmación final, guarda en BD y descarga el Excel.
-            Route::post('/generar', [GeneradorController::class, 'generarFinal'])->name('generarFinal');
+            Route::post('/generar-final', [GeneradorController::class, 'generarFinal'])->name('generarFinal');
         });
     });
 
@@ -87,7 +78,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/metas', [MetaController::class, 'index'])->name('metas.index');
         Route::post('/metas', [MetaController::class, 'store'])->name('metas.store');
-        
         Route::get('/reportes/metas-usuario', [ReporteMetasController::class, 'index'])->name('reportes.metas.index');
+        Route::put('/datos-crudos/{idFilaOrigen}', [DatoCrudoController::class, 'update']);
+        Route::delete('/datos-crudos/{idFilaOrigen}', [DatoCrudoController::class, 'destroy']);
     });
 });

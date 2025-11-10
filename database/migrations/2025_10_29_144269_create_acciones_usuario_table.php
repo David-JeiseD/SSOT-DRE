@@ -19,6 +19,7 @@ return new class extends Migration
             // ...
             $table->unsignedBigInteger('referencia_id');
             $table->string('referencia_tipo');
+            $table->json('metadata')->nullable();
 
             // Añadimos un índice manualmente para que las búsquedas sean rápidas,
             // algo que morphs() hacía automáticamente.

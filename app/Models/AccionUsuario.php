@@ -13,6 +13,9 @@ class AccionUsuario extends Model
     protected $table = 'acciones_usuario'; 
     
     protected $guarded = [];
+    protected $casts = [
+        'metadata' => 'array',
+    ];
 
     public function user() {
         return $this->belongsTo(User::class);

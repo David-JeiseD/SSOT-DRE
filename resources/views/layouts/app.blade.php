@@ -14,6 +14,10 @@
     <link href="https://fonts.bunny.net/css?family=Nunito:300,400,600,700" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+        <!-- TomSelect CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <!-- TomSelect JS (lo ponemos 'defer' para que no bloquee la carga) -->
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js" defer></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -175,26 +179,26 @@
                             </svg>
                         </div>
                         <a href="{{ url('/') }}" class="text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors duration-200">
-                            {{ config('app.name', 'Laravel') }}
+                            {{ config('ExpedientesPRO', 'ExpedientesPRO') }}
                         </a>
                     </div>
 
                     <!-- Desktop Navigation -->
                     <div class="hidden md:flex items-center space-x-8">
                         @role('admin')
-                            <a href="" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                            <a href="{{ route('admin.users.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                 </svg>
                                 Gestion de Usuarios
                             </a>
-                            <a href="" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                            <a href="{{ route('admin.reportes.metas.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6h6v6m2 4H7a2 2 0 01-2-2V7a2 2 0 012-2h3l2-2h4l2 2h3a2 2 0 012 2v12a2 2 0 01-2 2z"></path>
                                 </svg>
                                 Reporte Metas
                             </a>
-                            <a href="" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                            <a href="{{ route('admin.metas.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.879 9.168-5.168"/>
                                 </svg>
@@ -202,12 +206,6 @@
                             </a>
                         @endrole
                         @role('admin|encargado')
-                            <a href="{{ route('home') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                                </svg>
-                                Dashboard
-                            </a>
                             <a href="{{ route('ingesta.create') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -216,7 +214,7 @@
                             </a>
                         @endrole
                         @role('consultor|admin|encargado')
-                            <a href="" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                            <a href="{{route('admin.tipos-documento.index')}}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6h6v6m2 4H7a2 2 0 01-2-2V7a2 2 0 012-2h3l2-2h4l2 2h3a2 2 0 012 2v12a2 2 0 01-2 2z"/>
                                 </svg>
@@ -227,6 +225,13 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                                 Buscar
+                            </a>
+                            <a href="{{ route('expedientes.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h10"></path>
+                                </svg>
+                                Expedientes
                             </a>
                         @endrole
                     </div>
@@ -262,7 +267,7 @@
                                         <p class="text-sm font-medium text-gray-800">{{ Auth::user()->name }}</p>
                                         <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
                                     </div>
-                                    <a href="" class="block px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center">
+                                    <a href="{{ route('profile.show') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center">
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                         </svg>
@@ -304,19 +309,19 @@
                 <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200 py-4 space-y-2">
 
                 @role('admin')
-                    <a href="" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
+                    <a href="{{ route('admin.users.index') }}" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
                         <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                         </svg>
                         Gestion de Usuarios
                     </a>
-                    <a href="" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
+                    <a href="{{ route('admin.reportes.metas.index') }}" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
                         <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6h6v6m2 4H7a2 2 0 01-2-2V7a2 2 0 012-2h3l2-2h4l2 2h3a2 2 0 012 2v12a2 2 0 01-2 2z"></path>
                         </svg>
                         Reporte Metas
                     </a>
-                    <a href="" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
+                    <a href="{{ route('admin.metas.index') }}" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
                         <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.879 9.168-5.168"/>
                         </svg>
@@ -325,12 +330,7 @@
                 @endrole
 
                 @role('admin|encargado')
-                    <a href="{{ route('home') }}" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
-                        <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                        </svg>
-                        Dashboard
-                    </a>
+                
                     <a href="" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
                         <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -340,7 +340,7 @@
                 @endrole
 
                 @role('consultor|admin|encargado')
-                    <a href="" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
+                    <a href="{{route('admin.tipos-documento.index')}}" class="block py-2 px-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200">
                         <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6h6v6m2 4H7a2 2 0 01-2-2V7a2 2 0 012-2h3l2-2h4l2 2h3a2 2 0 012 2v12a2 2 0 01-2 2z"/>
                         </svg>

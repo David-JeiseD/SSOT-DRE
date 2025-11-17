@@ -13,11 +13,13 @@ class TipoDocumentoController extends Controller
      */
     public function index()
     {
-        // Usamos withCount para que Eloquent cuente las constancias de forma eficiente
         $tipos = TipoDocumento::withCount('constancias')->orderBy('nombre', 'asc')->get();
         
-        // Pasamos los datos a la vista
-        return view('admin.tipos-documento.index', compact('tipos'));
+        // 🔥 AÑADE ESTA LÍNEA 🔥
+        $columnasMaestras = \App\Models\ColumnaMaestra::orderBy('nombre_display')->get();
+        
+        // Pasamos ambas variables a la vista
+        return view('admin.tipos-documento.index', compact('tipos', 'columnasMaestras'));
     }
 
     /**

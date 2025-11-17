@@ -15,6 +15,8 @@ use App\Http\Controllers\ReporteMetasController;
 use App\Http\Controllers\DniController;
 use App\Http\Controllers\Api\ConstanciaController;
 use App\Http\Controllers\Api\DatoCrudoController;
+use App\Http\Controllers\Admin\PlantillaController;
+use App\Http\Controllers\ExpedienteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,7 +54,6 @@ Route::middleware(['auth'])->group(function () {
 
     // --- Perfil de Usuario ---
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
-    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     // --- Ingesta y Generación (Roles: Admin o Encargado) ---
@@ -74,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:admin'])->name('admin.')->prefix('admin')->group(function () {
         
         Route::resource('users', UserController::class);
+        Route::get('users/{user}/detalle', [UserController::class, 'detalle'])->name('users.detalle');
         Route::resource('tipos-documento', TipoDocumentoController::class);
 
         Route::get('/metas', [MetaController::class, 'index'])->name('metas.index');
@@ -81,5 +83,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reportes/metas-usuario', [ReporteMetasController::class, 'index'])->name('reportes.metas.index');
         Route::put('/datos-crudos/{idFilaOrigen}', [DatoCrudoController::class, 'update']);
         Route::delete('/datos-crudos/{idFilaOrigen}', [DatoCrudoController::class, 'destroy']);
+        Route::post('/plantillas/generar-personalizada', [PlantillaController::class, 'generarPersonalizada'])->name('plantillas.generarPersonalizada');
+        
+        
     });
+
+    Route::middleware(['role:admin|encargado|consultor'])->group(function () {
+        // Esta ruta mostrará el formulario de búsqueda y los resultados
+        Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
+             
+        // Esta ruta se encargará de la descarga del archivo Excel
+        Route::get('/expedientes/{expediente}/descargar', [ExpedienteController::class, 'descargar'])->name('expedientes.descargar');
+    });
+
 });

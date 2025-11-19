@@ -6,13 +6,15 @@ use App\Models\Constancia;
 use App\Models\Expediente;
 use App\Models\TipoDocumento;
 use App\Models\User;
-
+use App\Models\ColumnaMaestra;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf; // <-- 🔥 ¡Añade este!
+use Carbon\Carbon; 
 
 class ExpedienteController extends Controller
 {
@@ -60,60 +62,79 @@ class ExpedienteController extends Controller
      */
     public function descargar(Expediente $expediente)
     {
-        // 1. AUDITORÍA: Registrar quién está descargando el expediente (con la corrección).
+        // 1. Auditoría
         auth()->user()->acciones()->create([
             'tipo_accion' => 'DESCARGA_EXPEDIENTE',
             'referencia_id' => $expediente->id,
             'referencia_tipo' => Expediente::class,
         ]);
 
-        // 2. OBTENER LOS DATOS CRUDOS ASOCIADOS AL EXPEDIENTE
-        $datosCrudos = $expediente->datosUnificados()->with('columnaMaestra')->get();
+        // 2. OBTENER DATOS Y USUARIO
+        $expediente->load('datosUnificados.columnaMaestra', 'constancia.user');
+        $datosCrudos = $expediente->datosUnificados;
+        $usuario = $expediente->constancia->user;
         
-        // 3. PIVOTAR LOS DATOS PARA CONVERTIRLOS EN FILAS DE EXCEL
-        // Agrupamos todos los datos que pertenecen a la misma fila original usando 'id_fila_origen'
-        $filasAgrupadas = [];
-        foreach ($datosCrudos as $dato) {
-            $idFila = $dato->id_fila_origen;
-            $nombreColumna = $dato->columnaMaestra->nombre_display;
-            $filasAgrupadas[$idFila][$nombreColumna] = $dato->valor;
-        }
+        // ==========================================================
+        // INICIO DE LA LÓGICA DE ORDENAMIENTO CORRECTA
+        // ==========================================================
 
-        // 4. OBTENER Y ORDENAR LOS ENCABEZADOS (HEADERS)
+        // 3. OBTENER Y ORDENAR LOS ENCABEZADOS (HEADERS)
         $columnas = $datosCrudos->pluck('columnaMaestra')->unique('id');
-        $ordenPersonalizado = ['MESES', 'AÑO', 'T.REMUN', 'T.DESC.', 'LIQUIDO', 'REINT.', 'Observacion'];
         
-        $encabezadosOrdenados = $columnas->sortBy(function ($columna) use ($ordenPersonalizado) {
-            $posicion = array_search($columna->nombre_display, $ordenPersonalizado);
-            return $posicion === false ? 999 : $posicion; // Si no está en el orden, va al final
-        })->pluck('nombre_display');
+        // Definimos el orden exacto (igual que en GeneradorController)
+        $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
+        $ordenFinal = ['ref_mov', 'reint_', 'neto_a_pagar'];
+        
+        $columnasOrdenadas = $columnas->sortBy(function ($columna) use ($ordenInicio, $ordenFinal) {
+            $nombre = $columna->nombre_normalizado;
+            $posicionInicio = array_search($nombre, $ordenInicio);
+            if ($posicionInicio !== false) return $posicionInicio;
+            $posicionFinal = array_search($nombre, $ordenFinal);
+            if ($posicionFinal !== false) return 1000 + $posicionFinal;
+            return 500; // Columnas sin orden específico van al medio
+        });
 
-        // 5. GENERAR EL ARCHIVO EXCEL CON PHPSPREADSHEET
+        // 4. PIVOTAR LOS DATOS (agrupar por fila)
+        $tablaPivoteada = [];
+        foreach ($datosCrudos as $dato) {
+            $claveFila = $dato->id_fila_origen;
+            if (!isset($tablaPivoteada[$claveFila])) {
+                $tablaPivoteada[$claveFila] = ['fecha' => $dato->fecha_registro, 'datos' => []];
+            }
+            $tablaPivoteada[$claveFila]['datos'][$dato->columna_maestra_id] = $dato->valor;
+        }
+        // Ordenamos las filas por fecha
+        uasort($tablaPivoteada, fn($a, $b) => $a['fecha'] <=> $b['fecha']);
+        
+        // ==========================================================
+        // FIN DE LA LÓGICA DE ORDENAMIENTO
+        // ==========================================================
+
+        // 5. GENERAR EL ARCHIVO EXCEL
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Escribimos la fila de encabezados
+        // Escribir cabeceras ordenadas
         $columnaLetra = 'A';
-        foreach ($encabezadosOrdenados as $encabezado) {
-            $sheet->setCellValue($columnaLetra . '1', $encabezado);
+        foreach ($columnasOrdenadas as $columna) {
+            $sheet->setCellValue($columnaLetra . '1', $columna->nombre_display);
             $columnaLetra++;
         }
 
-        // Escribimos los datos
+        // Escribir filas de datos
         $filaNumero = 2;
-        foreach ($filasAgrupadas as $filaDatos) {
+        foreach ($tablaPivoteada as $filaDatos) {
             $columnaLetra = 'A';
-            foreach ($encabezadosOrdenados as $encabezado) {
-                // Si la fila tiene un valor para este encabezado, lo escribimos. Si no, dejamos la celda vacía.
-                $valor = $filaDatos[$encabezado] ?? '';
+            foreach ($columnasOrdenadas as $columna) {
+                $valor = $filaDatos['datos'][$columna->id] ?? '';
                 $sheet->setCellValue($columnaLetra . $filaNumero, $valor);
                 $columnaLetra++;
             }
             $filaNumero++;
         }
 
-        // 6. FORZAR LA DESCARGA DEL ARCHIVO
-        $nombreUsuario = $expediente->datosUnificados->first()->user->name ?? 'Usuario';
+        // 6. FORZAR LA DESCARGA
+        $nombreUsuario = Str::slug($usuario->name); // Usamos Str::slug para un nombre de archivo seguro
         $nombreArchivo = "Expediente_{$expediente->numero_expediente}_{$nombreUsuario}.xlsx";
         
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -123,5 +144,106 @@ class ExpedienteController extends Controller
         $writer = new Xlsx($spreadsheet);
         $writer->save('php://output');
         exit;
+    }
+
+    public function show(Expediente $expediente)
+    {
+        // 1. Cargamos las relaciones para obtener el usuario y la constancia
+        $expediente->load('constancia.user', 'datosUnificados.columnaMaestra');
+
+        // 2. "Pivotamos" los datos del expediente para convertirlos en una tabla fácil de leer
+        $datosCrudos = $expediente->datosUnificados;
+
+        // 3. Obtenemos solo las columnas que están presentes en este expediente y las ordenamos
+        $columnasIds = $datosCrudos->pluck('columna_maestra_id')->unique();
+        $columnas = ColumnaMaestra::find($columnasIds);
+
+        // Reutilizamos la lógica de ordenamiento
+        $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
+        $ordenFinal = ['ref_mov', 'reint_', 'neto_a_pagar'];
+        $columnasOrdenadas = $columnas->sortBy(function ($columna) use ($ordenInicio, $ordenFinal) {
+            $nombre = $columna->nombre_normalizado;
+            $posicionInicio = array_search($nombre, $ordenInicio);
+            if ($posicionInicio !== false) return $posicionInicio;
+            $posicionFinal = array_search($nombre, $ordenFinal);
+            if ($posicionFinal !== false) return 1000 + $posicionFinal;
+            return 500;
+        });
+
+        // Pivotamos la tabla
+        $tabla = [];
+        foreach ($datosCrudos as $dato) {
+            $claveFila = $dato->id_fila_origen;
+            if (!isset($tabla[$claveFila])) {
+                $tabla[$claveFila] = ['fecha' => $dato->fecha_registro, 'datos' => []];
+            }
+            $tabla[$claveFila]['datos'][$dato->columna_maestra_id] = $dato->valor;
+        }
+        uasort($tabla, fn($a, $b) => $a['fecha'] <=> $b['fecha']);
+
+        // 4. Pasamos toda la información a la nueva vista
+        return view('expedientes.show', [
+            'expediente' => $expediente,
+            'columnas' => $columnasOrdenadas,
+            'tabla' => $tabla
+        ]);
+    }
+    public function descargarPdf(Expediente $expediente)
+    {
+        // 1. Registramos la auditoría de descarga
+        auth()->user()->acciones()->create([
+            'tipo_accion' => 'DESCARGA_CONSTANCIA_PDF', // Acción más específica
+            'referencia_id' => $expediente->id,
+            'referencia_tipo' => Expediente::class,
+        ]);
+
+        // 2. Cargamos todas las relaciones necesarias
+        $expediente->load('constancia.user', 'datosUnificados.columnaMaestra', 'generadoPor');
+
+        // 3. Obtenemos las variables principales
+        $usuario = $expediente->constancia->user;
+        $generadoPor = auth()->user(); // O $expediente->generadoPor si quieres al creador original
+        $datosCrudos = $expediente->datosUnificados;
+
+        // 4. Obtenemos y ordenamos las columnas (lógica ya conocida)
+        $columnasIds = $datosCrudos->pluck('columna_maestra_id')->unique();
+        $columnas = ColumnaMaestra::find($columnasIds);
+        $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
+        $ordenFinal = ['ref_mov', 'reint_', 'neto_a_pagar'];
+        $columnasOrdenadas = $columnas->sortBy(function ($columna) use ($ordenInicio, $ordenFinal) {
+            $nombre = $columna->nombre_normalizado;
+            $posicionInicio = array_search($nombre, $ordenInicio);
+            if ($posicionInicio !== false) return $posicionInicio;
+            $posicionFinal = array_search($nombre, $ordenFinal);
+            if ($posicionFinal !== false) return 1000 + $posicionFinal;
+            return 500;
+        });
+
+        // 5. Pivotamos la tabla (lógica ya conocida)
+        $tabla = [];
+        foreach ($datosCrudos as $dato) {
+            $claveFila = $dato->id_fila_origen;
+            if (!isset($tabla[$claveFila])) {
+                $tabla[$claveFila] = ['fecha' => $dato->fecha_registro, 'datos' => []];
+            }
+            $tabla[$claveFila]['datos'][$dato->columna_maestra_id] = $dato->valor;
+        }
+        uasort($tabla, fn($a, $b) => $a['fecha'] <=> $b['fecha']);
+
+        // 6. Juntamos todos los datos que la vista del PDF necesita
+        $data = [
+            'expediente' => $expediente,
+            'usuario' => $usuario,
+            'generadoPor' => $generadoPor,
+            'columnas' => $columnasOrdenadas,
+            'tabla' => $tabla
+        ];
+
+        // 7. Generamos el PDF
+        $pdf = Pdf::loadView('pdf.constancia', $data);
+
+        // 8. Forzamos la descarga
+        $nombreArchivo = "Constancia_{$expediente->numero_expediente}_{$usuario->dni}.pdf";
+        return $pdf->download($nombreArchivo);
     }
 }

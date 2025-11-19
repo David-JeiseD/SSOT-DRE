@@ -59,8 +59,8 @@
                                         Generado por: {{ $expediente->generadoPor->name }} el {{ $expediente->created_at->format('d/m/Y H:i') }}
                                     </p>
                                 </div>
-                                <a href="{{ route('expedientes.descargar', $expediente) }}" class="inline-flex items-center px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-lg">
-                                    Descargar
+                                <a href="{{ route('expedientes.show', $expediente) }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">
+                                    Ver Detalle
                                 </a>
                             </div>
                         @empty

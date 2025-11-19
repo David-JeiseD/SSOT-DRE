@@ -22,7 +22,7 @@ class PlantillaController extends Controller
         // ¡Aquí reusamos la lógica de ordenamiento que ya hemos perfeccionado!
         $columnas = ColumnaMaestra::find($validated['columnas']);
         
-        $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
+        $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento'];
         $ordenFinal = ['reint_', 'neto_a_pagar'];
         
         $columnasOrdenadas = $columnas->sortBy(function ($columna) use ($ordenInicio, $ordenFinal) {

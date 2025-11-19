@@ -18,55 +18,82 @@ class DatoCrudoController extends Controller
      */
     public function update(Request $request, $idFilaOrigen)
     {
+        // ... la validación no cambia ...
         $validator = Validator::make($request->all(), [
             'datos' => 'required|array',
             'datos.*' => 'nullable|string|max:255',
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-
-        $nuevosDatos = $request->input('datos');
-
+    
         DB::beginTransaction();
         try {
-            $datosOriginales = DatoUnificado::where('id_fila_origen', $idFilaOrigen)->get();
-            if ($datosOriginales->isEmpty()) {
-                throw new \Exception('No se encontraron datos para la fila a actualizar.');
+            $filaDeReferencia = DatoUnificado::where('id_fila_origen', $idFilaOrigen)->first();
+            if (!$filaDeReferencia) {
+                throw new \Exception('La fila que intentas editar ya no existe.');
             }
-
-            // 🔥 OBTENEMOS EL ID DEL USUARIO UNA SOLA VEZ 🔥
-            $usuarioAfectadoId = $datosOriginales->first()->user_id;
-
+    
             foreach ($request->input('datos') as $columnaId => $nuevoValor) {
-                $dato = $datosOriginales->firstWhere('columna_maestra_id', $columnaId);
-
-                if ($dato && $dato->valor != $nuevoValor) {
-                    $valorAntiguo = $dato->valor;
+                
+                // 🔥 ========================================================== 🔥
+                // 🔥 LÓGICA REFINADA: Encuentra el registro o prepara uno nuevo en memoria.
+                // firstOrNew: Lo busca. Si no lo encuentra, crea una NUEVA INSTANCIA, pero NO la guarda en la BD todavía.
+                $dato = DatoUnificado::firstOrNew([
+                    'id_fila_origen'     => $idFilaOrigen,
+                    'columna_maestra_id' => $columnaId,
+                ]);
+    
+                $valorAntiguo = $dato->valor; // Guardamos el valor antiguo para el log ANTES de cualquier cambio.
+    
+                // CASO 1: El nuevo valor está vacío.
+                if (is_null($nuevoValor) || $nuevoValor === '') {
+                    // Si el registro ya existía en la BD, lo eliminamos.
+                    if ($dato->exists) {
+                        $dato->delete();
+                        // (Aquí podrías agregar un log de auditoría para la eliminación si lo necesitas)
+                    }
+                    // Si el registro no existía (era una instancia nueva), simplemente no hacemos nada y se descarta.
+    
+                // CASO 2: El nuevo valor NO está vacío.
+                } else {
+                    // Llenamos el modelo con los datos y lo guardamos.
+                    // Esto funciona tanto para actualizar uno existente como para crear uno nuevo.
+                    $dato->user_id = $filaDeReferencia->user_id;
+                    $dato->fecha_registro = $filaDeReferencia->fecha_registro;
                     $dato->valor = $nuevoValor;
                     $dato->save();
-
-                    AccionUsuario::create([
+                }
+    
+                // 🔥 AUDITORÍA: Se activa solo si el valor realmente cambió.
+                // Comparamos el valor original con el nuevo.
+                if ($valorAntiguo != $nuevoValor) {
+                     AccionUsuario::create([
                         'user_id' => auth()->id(),
                         'tipo_accion' => 'EDICION_DATO_CRUDO',
-                        'referencia_id' => $dato->id,
+                        'referencia_id' => $dato->id ?? $filaDeReferencia->id, // Usamos el id del dato si existe
                         'referencia_tipo' => DatoUnificado::class,
                         'metadata' => [
-                            // 🔥 AQUÍ ESTÁ LA CORRECCIÓN CRUCIAL 🔥
-                            // Añadimos el ID del usuario afectado al metadata.
-                            'afectado_user_id' => $usuarioAfectadoId,
+                            'afectado_user_id' => $filaDeReferencia->user_id,
                             'cambio' => [
                                 'columna_maestra_id' => $columnaId,
                                 'valor_anterior' => $valorAntiguo,
-                                'valor_nuevo' => $nuevoValor,
+                                'valor_nuevo' => $nuevoValor, // Puede ser vacío, registrando la eliminación
                             ]
                         ],
                     ]);
                 }
+                // 🔥 ========================================================== 🔥
             }
+    
             DB::commit();
-            return response()->json(['message' => 'Fila actualizada con éxito', 'datos' => $request->input('datos')]);
+            
+            return response()->json([
+                'message' => 'Fila actualizada con éxito', 
+                'datos' => $request->input('datos')
+            ]);
+    
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Error al actualizar la fila: ' . $e->getMessage()], 500);

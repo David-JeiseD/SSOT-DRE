@@ -29,6 +29,25 @@ class GeneradorController extends Controller
     {
         $validated = $request->validate(['user_id' => 'required|exists:users,id']);
         $usuario = User::findOrFail($validated['user_id']);
+        
+        // --- 🔥 INICIO DEL CAMBIO ---
+
+        // 1. Obtenemos TODAS las columnas maestras del sistema, ya no filtramos por usuario.
+        $todasLasColumnas = ColumnaMaestra::orderBy('nombre_display', 'asc')->get();
+
+        // 2. Las separamos en dos listas usando el flag 'es_fijo' de la base de datos.
+        //    Esto es más robusto que usar un array de nombres en la vista.
+        $columnasFijas = $todasLasColumnas->where('es_fijo', true);
+        $columnasOpcionales = $todasLasColumnas->where('es_fijo', false);
+        
+        // 3. Mantenemos esta consulta para el resumen informativo, es correcta.
+        $columnasConDatosCount = ColumnaMaestra::whereHas('datos', function ($query) use ($usuario) {
+            $query->where('user_id', $usuario->id);
+        })->count();
+
+        // --- 🔥 FIN DEL CAMBIO ---
+
+        // La lógica para obtener los años disponibles no necesita cambios, está bien.
         $columnaAnio = ColumnaMaestra::where('nombre_normalizado', 'ano')->first();
         $aniosDisponibles = collect();
         if ($columnaAnio) {
@@ -37,15 +56,13 @@ class GeneradorController extends Controller
                 ->distinct()->orderBy('valor', 'desc')->pluck('valor');
         }
 
-        $columnasDisponibles = ColumnaMaestra::whereHas('datos', function ($query) use ($usuario) {
-            $query->where('user_id', $usuario->id);
-        })
-        ->orderBy('nombre_display', 'asc') // <-- Asegúrate de que esta línea esté
-        ->get();
         return view('generador.filtros', [
             'usuario' => $usuario,
             'aniosDisponibles' => $aniosDisponibles,
-            'columnasDisponibles' => $columnasDisponibles,
+            // --- 🔥 Pasamos las nuevas variables a la vista ---
+            'columnasFijas' => $columnasFijas,
+            'columnasOpcionales' => $columnasOpcionales,
+            'columnasConDatosCount' => $columnasConDatosCount,
         ]);
     }
     
@@ -175,16 +192,14 @@ class GeneradorController extends Controller
                 ]
             );
 
-            // 4. VALIDACIÓN DE UNICIDAD DEL EXPEDIENTE (Contextual a la constancia)
-            $expedienteExistente = Expediente::where('constancia_id', $constancia->id)
-                                    ->where('numero_expediente', $numeroExpedienteNormalizado)
-                                    ->exists();
+            // 🔥 4. VALIDACIÓN DE UNICIDAD DEL EXPEDIENTE (GLOBAL - CORREGIDO) 🔥
+            // Verificamos si ya existe un expediente con este número en CUALQUIER constancia.
+            $expedienteExistente = Expediente::where('numero_expediente', $numeroExpedienteNormalizado)->exists();
             
             if ($expedienteExistente) {
-                // Si ya existe para esta constancia, lanzamos un error de validación personalizado.
-                // Esto detendrá la ejecución y mostrará el error al usuario.
+                // Si ya existe, lanzamos un error de validación global.
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                'numero_expediente' => 'Este número de expediente ya ha sido registrado para la constancia seleccionada.',
+                    'numero_expediente' => 'Este número de expediente ya existe en el sistema. Por favor, utiliza uno diferente.',
                 ]);
             }
             
@@ -298,4 +313,24 @@ class GeneradorController extends Controller
         // Devolvemos todo lo que necesitamos
         return [$columnasOrdenadas, $tablaPivoteada, $datosCrudos];
     }
+    public function verificarExistenciaExpediente(Request $request)
+    {
+        // 1. Validar que recibimos el parámetro necesario
+        $validated = $request->validate([
+            'numero_expediente' => 'required|string|max:255',
+        ]);
+
+        // 2. Normalizar el número (igual que en generarFinal)
+        $numeroExpedienteNormalizado = strtoupper(preg_replace('/\s+/', '', trim($validated['numero_expediente'])));
+
+        // 3. Buscar si existe en la base de datos
+        $existe = Expediente::where('numero_expediente', $numeroExpedienteNormalizado)->exists();
+
+        // 4. Retornar respuesta JSON
+        return response()->json([
+            'existe' => $existe,
+            'numero' => $numeroExpedienteNormalizado
+        ]);
+    }
+    
 }

@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\ConstanciaController;
 use App\Http\Controllers\Api\DatoCrudoController;
 use App\Http\Controllers\Admin\PlantillaController;
 use App\Http\Controllers\ExpedienteController;
+use App\Http\Controllers\Admin\ColumnaMaestraController;
+use App\Http\Controllers\Admin\DatoGestionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,7 +53,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/constancias/buscar', [ConstanciaController::class, 'buscar'])->name('api.constancias.buscar');
     // --- API Interna para consulta de DNI ---
     Route::post('/consultar-dni', [DniController::class, 'obtenerDatos'])->name('dni.obtener');
-
+    Route::post('/expedientes/verificar-existencia', [GeneradorController::class, 'verificarExistenciaExpediente'])->name('api.expedientes.verificar');
     // --- Perfil de Usuario ---
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -67,6 +69,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', [GeneradorController::class, 'index'])->name('index'); 
             Route::post('/buscar', [GeneradorController::class, 'buscarDatos'])->name('buscar');
             Route::post('/previsualizar', [GeneradorController::class, 'previsualizar'])->name('previsualizar');
+            
             Route::post('/generar-final', [GeneradorController::class, 'generarFinal'])->name('generarFinal');
         });
     });
@@ -76,24 +79,43 @@ Route::middleware(['auth'])->group(function () {
         
         Route::resource('users', UserController::class);
         Route::get('users/{user}/detalle', [UserController::class, 'detalle'])->name('users.detalle');
-        Route::resource('tipos-documento', TipoDocumentoController::class);
+        Route::resource('tipos-documento', TipoDocumentoController::class)->except(['index']);
 
         Route::get('/metas', [MetaController::class, 'index'])->name('metas.index');
         Route::post('/metas', [MetaController::class, 'store'])->name('metas.store');
         Route::get('/reportes/metas-usuario', [ReporteMetasController::class, 'index'])->name('reportes.metas.index');
         Route::put('/datos-crudos/{idFilaOrigen}', [DatoCrudoController::class, 'update']);
         Route::delete('/datos-crudos/{idFilaOrigen}', [DatoCrudoController::class, 'destroy']);
-        Route::post('/plantillas/generar-personalizada', [PlantillaController::class, 'generarPersonalizada'])->name('plantillas.generarPersonalizada');
+        //Route::post('/plantillas/generar-personalizada', [PlantillaController::class, 'generarPersonalizada'])->name('plantillas.generarPersonalizada');
+        // --- NUEVA RUTA PARA GESTIÓN DE COLUMNAS MAESTRAS ---
+        Route::resource('columnas-maestras', ColumnaMaestraController::class)->except(['show']);
         
+        Route::prefix('gestion-datos')->name('gestion-datos.')->group(function () {
         
+            // Muestra la página de búsqueda de usuario
+            Route::get('/', [DatoGestionController::class, 'index'])->name('index');
+            
+            // Muestra la tabla de datos para un usuario específico
+            Route::get('/{user}', [DatoGestionController::class, 'show'])->name('show');
+    
+            // (Las rutas para store, update, destroy ya las tenemos en DatoCrudoController, las reutilizaremos)
+            // (Podríamos añadir una ruta POST para crear un nuevo registro completo si es necesario)
+            Route::post('/{user}', [DatoGestionController::class, 'store'])->name('store'); // Para crear un nuevo registro de pago
+    
+        });
+
     });
 
     Route::middleware(['role:admin|encargado|consultor'])->group(function () {
         // Esta ruta mostrará el formulario de búsqueda y los resultados
         Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
-             
+        //ruta para VER la lista de tipos de documento
+        Route::get('/admin/tipos-documento', [TipoDocumentoController::class, 'index'])->name('admin.tipos-documento.index');
         // Esta ruta se encargará de la descarga del archivo Excel
         Route::get('/expedientes/{expediente}/descargar', [ExpedienteController::class, 'descargar'])->name('expedientes.descargar');
+        Route::post('/admin/plantillas/generar-personalizada', [PlantillaController::class, 'generarPersonalizada'])->name('admin.plantillas.generarPersonalizada');
+        Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
+        Route::get('/expedientes/{expediente}/pdf', [ExpedienteController::class, 'descargarPdf'])->name('expedientes.pdf');
     });
 
 });

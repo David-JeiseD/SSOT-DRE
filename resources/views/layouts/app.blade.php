@@ -169,7 +169,7 @@
         
         {{-- Aquí va tu NAV completo --}}
         <nav class="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50">
-            <div class="container mx-auto px-1">
+            <div class=" mx-auto px-3">
                 <div class="flex justify-between items-center py-4">
                     <!-- Brand/Logo -->
                     <div class="flex items-center space-x-3">
@@ -203,6 +203,20 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.879 9.168-5.168"/>
                                 </svg>
                                 Asignar Metas
+                            </a>
+                            <a href="{{ route('admin.columnas-maestras.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h10"></path>
+                                </svg>
+                                Gestión de Columnas Maestras
+                            </a>
+                            <a href="{{ url('/admin/gestion-datos') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h10"></path>
+                                </svg>
+                                Gestión de Datos
                             </a>
                         @endrole
                         @role('admin|encargado')
@@ -244,11 +258,7 @@
                                     {{ __('Login') }}
                                 </a>
                             @endif
-                            @if (Route::has('register'))
-                                <a href="{{ route('register') }}" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
-                                    {{ __('Register') }}
-                                </a>
-                            @endif
+                           
                         @else
                             <!-- User Dropdown -->
                             <div class="relative">

@@ -76,6 +76,7 @@ class IngestaService
             'ley_19990'          => ['ley 19990', 'b,ley 19990'],
             'ley_20530'          => ['ley 20530', 'a,ley 20530'],
             'afp'                => ['c,afp'],
+            
             // ... puedes añadir todas las variaciones que se te ocurran aquí
         ];
     

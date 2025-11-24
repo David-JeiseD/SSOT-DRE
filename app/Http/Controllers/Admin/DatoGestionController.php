@@ -48,7 +48,7 @@ class DatoGestionController extends Controller
     {
         $todasLasColumnas = ColumnaMaestra::get();
         
-        // Define the exact order that matches your business logic
+        // Define torden de  la visualiacion de los elementos
         $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
         $ordenFinal = ['ref_mov', 'reint_', 'neto_a_pagar'];
 

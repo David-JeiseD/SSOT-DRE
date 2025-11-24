@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Admin/PlantillaController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -12,14 +13,13 @@ class PlantillaController extends Controller
 {
     public function generarPersonalizada(Request $request)
     {
-        // 1. Validar la entrada
+        // 1. Validar la entrada (sin cambios)
         $validated = $request->validate([
             'columnas' => 'required|array|min:1',
             'columnas.*' => 'exists:columnas_maestras,id',
         ]);
 
-        // 2. Obtener y ordenar las columnas seleccionadas
-        // ¡Aquí reusamos la lógica de ordenamiento que ya hemos perfeccionado!
+        // 2. Obtener y ordenar las columnas seleccionadas (sin cambios)
         $columnas = ColumnaMaestra::find($validated['columnas']);
         
         $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento'];
@@ -38,14 +38,23 @@ class PlantillaController extends Controller
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Escribimos solo la fila de encabezados
-        $columnaLetra = 'A';
+        // 🔥 ========================================================== 🔥
+        // 🔥 CAMBIO PRINCIPAL: Añadimos la columna 'N°' al principio 🔥
+        // ========================================================== 🔥
+
+        // Escribimos la primera cabecera 'N°' en la celda A1
+        $sheet->setCellValue('A1', 'N°');
+        
+        // Empezamos a escribir el resto de las cabeceras desde la columna B
+        $columnaLetra = 'B'; 
         foreach ($columnasOrdenadas as $columna) {
             $sheet->setCellValue($columnaLetra . '1', $columna->nombre_display);
-            $columnaLetra++;
+            
+            // Avanzamos a la siguiente letra del abecedario
+            $columnaLetra++; 
         }
 
-        // 4. Forzar la descarga
+        // 4. Forzar la descarga (sin cambios)
         $nombreArchivo = "Plantilla_Personalizada_" . date('Y-m-d') . ".xlsx";
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $nombreArchivo . '"');

@@ -15,9 +15,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf; // <-- 🔥 ¡Añade este!
 use Carbon\Carbon; 
+use App\Http\Controllers\Traits\GeneratesConstanciaPdf; 
 
 class ExpedienteController extends Controller
 {
+    use GeneratesConstanciaPdf; 
     /**
      * Muestra la interfaz de búsqueda y los resultados de las constancias y sus expedientes.
      */
@@ -190,60 +192,22 @@ class ExpedienteController extends Controller
     }
     public function descargarPdf(Expediente $expediente)
     {
-        // 1. Registramos la auditoría de descarga
+        // 1. Auditoría
         auth()->user()->acciones()->create([
-            'tipo_accion' => 'DESCARGA_CONSTANCIA_PDF', // Acción más específica
+            'tipo_accion' => 'DESCARGA_CONSTANCIA_PDF',
             'referencia_id' => $expediente->id,
             'referencia_tipo' => Expediente::class,
         ]);
 
-        // 2. Cargamos todas las relaciones necesarias
-        $expediente->load('constancia.user', 'datosUnificados.columnaMaestra', 'generadoPor');
+        // 2. Cargamos las relaciones necesarias
+        $expediente->load('constancia.user', 'datosUnificados.columnaMaestra');
 
         // 3. Obtenemos las variables principales
         $usuario = $expediente->constancia->user;
-        $generadoPor = auth()->user(); // O $expediente->generadoPor si quieres al creador original
+        $generadoPor = auth()->user(); // La persona que está descargando AHORA
         $datosCrudos = $expediente->datosUnificados;
 
-        // 4. Obtenemos y ordenamos las columnas (lógica ya conocida)
-        $columnasIds = $datosCrudos->pluck('columna_maestra_id')->unique();
-        $columnas = ColumnaMaestra::find($columnasIds);
-        $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
-        $ordenFinal = ['ref_mov', 'reint_', 'neto_a_pagar'];
-        $columnasOrdenadas = $columnas->sortBy(function ($columna) use ($ordenInicio, $ordenFinal) {
-            $nombre = $columna->nombre_normalizado;
-            $posicionInicio = array_search($nombre, $ordenInicio);
-            if ($posicionInicio !== false) return $posicionInicio;
-            $posicionFinal = array_search($nombre, $ordenFinal);
-            if ($posicionFinal !== false) return 1000 + $posicionFinal;
-            return 500;
-        });
-
-        // 5. Pivotamos la tabla (lógica ya conocida)
-        $tabla = [];
-        foreach ($datosCrudos as $dato) {
-            $claveFila = $dato->id_fila_origen;
-            if (!isset($tabla[$claveFila])) {
-                $tabla[$claveFila] = ['fecha' => $dato->fecha_registro, 'datos' => []];
-            }
-            $tabla[$claveFila]['datos'][$dato->columna_maestra_id] = $dato->valor;
-        }
-        uasort($tabla, fn($a, $b) => $a['fecha'] <=> $b['fecha']);
-
-        // 6. Juntamos todos los datos que la vista del PDF necesita
-        $data = [
-            'expediente' => $expediente,
-            'usuario' => $usuario,
-            'generadoPor' => $generadoPor,
-            'columnas' => $columnasOrdenadas,
-            'tabla' => $tabla
-        ];
-
-        // 7. Generamos el PDF
-        $pdf = Pdf::loadView('pdf.constancia', $data);
-
-        // 8. Forzamos la descarga
-        $nombreArchivo = "Constancia_{$expediente->numero_expediente}_{$usuario->dni}.pdf";
-        return $pdf->download($nombreArchivo);
+        // 4. 🔥 LLAMAMOS A LA FUNCIÓN CENTRALIZADA DEL TRAIT
+        return $this->streamConstanciaPdf($expediente, $usuario, $generadoPor, $datosCrudos);
     }
 }

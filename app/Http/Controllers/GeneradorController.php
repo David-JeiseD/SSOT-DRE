@@ -10,9 +10,11 @@ use App\Exports\ExpedienteExport; // 🔥 Lo crearemos después
 use Illuminate\Support\Facades\Validator; 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Http\Controllers\Traits\GeneratesConstanciaPdf;
 
 class GeneradorController extends Controller
 {
+    use GeneratesConstanciaPdf;
     /**
      * PASO 1: Muestra la página inicial para buscar un usuario.
      */
@@ -160,113 +162,91 @@ class GeneradorController extends Controller
      * PASO 4: Guarda el expediente y fuerza la descarga del archivo Excel.
      */
 
-    public function generarFinal(Request $request)
-    {
-        // 1. VALIDACIÓN INICIAL (Ajustada a la nueva lógica)
-        // Ya no validamos la unicidad de la constancia aquí.
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'fecha_desde' => 'required|date',
-            'fecha_hasta' => 'required|date|after_or_equal:fecha_desde',
-            'columnas' => 'required|array|min:1',
-            'columnas.*' => 'exists:columnas_maestras,id',
-            'numero_constancia' => 'required|string|max:255',
-            'numero_expediente' => 'required|string|max:255',
-            'tipo_documento_id' => 'required|exists:tipo_documentos,id'
-        ]);
+     public function generarFinal(Request $request)
+     {
+         // 1. VALIDACIÓN
+         // La validación de unicidad de Laravel se encarga de prevenir duplicados
+         $validated = $request->validate([
+             'user_id' => 'required|exists:users,id',
+             'fecha_desde' => 'required|date',
+             'fecha_hasta' => 'required|date|after_or_equal:fecha_desde',
+             'columnas' => 'required|array|min:1',
+             'columnas.*' => 'exists:columnas_maestras,id',
+             'numero_constancia' => 'required|string|max:255',
+             'numero_expediente' => 'required|string|max:255|unique:expedientes,numero_expediente',
+             'tipo_documento_id' => 'required|exists:tipo_documentos,id'
+         ]);
+ 
+         // 2. NORMALIZACIÓN DE ENTRADAS
+         $numeroConstanciaNormalizado = strtoupper(preg_replace('/\s+/', '', trim($validated['numero_constancia'])));
+         $numeroExpedienteNormalizado = strtoupper(preg_replace('/\s+/', '', trim($validated['numero_expediente'])));
+         
+         DB::beginTransaction();
+         try {
+             // 3. BUSCAR O CREAR LA CONSTANCIA
+             $constancia = Constancia::firstOrCreate(
+                 ['numero_constancia' => $numeroConstanciaNormalizado],
+                 [
+                     'user_id' => $validated['user_id'],
+                     'tipo_documento_id' => $validated['tipo_documento_id'],
+                 ]
+             );
+ 
+             // 4. CREAR EL NUEVO EXPEDIENTE
+             $rangoFechas = Carbon::parse($validated['fecha_desde'])->format('d/m/Y') . ' - ' . Carbon::parse($validated['fecha_hasta'])->format('d/m/Y');
+             $expediente = Expediente::create([
+                 'constancia_id' => $constancia->id,
+                 'numero_expediente' => $numeroExpedienteNormalizado,
+                 'generado_por_user_id' => auth()->id(),
+                 'rango_fechas_descripcion' => $rangoFechas,
+             ]);
+ 
+             // 5. OBTENER LOS DATOS CRUDOS NECESARIOS
+             $usuario = User::findOrFail($validated['user_id']);
+             $datosCrudos = DatoUnificado::where('user_id', $usuario->id)
+                 ->whereIn('columna_maestra_id', $validated['columnas'])
+                 ->whereBetween('fecha_registro', [$validated['fecha_desde'], $validated['fecha_hasta']])
+                 ->orderBy('fecha_registro', 'asc')
+                 ->get();
+ 
+             // 6. VINCULAR LOS DATOS AL EXPEDIENTE
+             $datosParaVincular = $datosCrudos->pluck('id')->map(function ($id) use ($expediente) {
+                 return ['expediente_id' => $expediente->id, 'dato_unificado_id' => $id];
+             });
+             DB::table('expediente_datos')->insert($datosParaVincular->toArray());
+ 
+             // 7. REGISTRAR LA ACCIÓN DE AUDITORÍA
+             AccionUsuario::create([
+                 'user_id' => auth()->id(),
+                 'tipo_accion' => 'GENERACION_EXPEDIENTE',
+                 'referencia_id' => $expediente->id,
+                 'referencia_tipo' => Expediente::class,
+             ]);
+ 
+             // Si todo ha ido bien hasta ahora, guardamos los cambios en la base de datos
+             DB::commit();
+ 
+             // 🔥 ========================================================== 🔥
+             // 🔥 8. GENERAR Y DESCARGAR EL PDF USANDO EL TRAIT 🔥
+             // Obtenemos el usuario que está generando el documento en este momento
+             $generadoPor = auth()->user();
+             
+             // Llamamos a la función del Trait para generar y devolver la descarga del PDF
+             return $this->streamConstanciaPdf($expediente, $usuario, $generadoPor, $datosCrudos);
+             // 🔥 ========================================================== 🔥
+ 
+         } catch (\Illuminate\Validation\ValidationException $e) {
+             // Este catch es específico para los errores de validación de Laravel
+             DB::rollBack();
+             return redirect()->back()->withErrors($e->errors())->withInput();
+             
+         } catch (\Exception $e) {
+             // Este catch es para cualquier otro error inesperado (ej. fallo de la base de datos)
+             DB::rollBack();
+             return redirect()->back()->with('error', 'Ocurrió un error inesperado al generar el expediente: ' . $e->getMessage())->withInput();
+         }
+     }
 
-        // 2. NORMALIZACIÓN DE ENTRADAS (Sigue siendo crucial)
-        $numeroConstanciaNormalizado = strtoupper(preg_replace('/\s+/', '', trim($validated['numero_constancia'])));
-        $numeroExpedienteNormalizado = strtoupper(preg_replace('/\s+/', '', trim($validated['numero_expediente'])));
-        
-        DB::beginTransaction();
-        try {
-            // 3. BUSCAR O CREAR LA CONSTANCIA (La nueva lógica "inteligente")
-            $constancia = Constancia::firstOrCreate(
-                // Criterio para buscar:
-                ['numero_constancia' => $numeroConstanciaNormalizado],
-                // Datos que se usarán SOLO si se crea una nueva:
-                [
-                    'user_id' => $validated['user_id'],
-                    'tipo_documento_id' => $validated['tipo_documento_id'],
-                ]
-            );
-
-            // 🔥 4. VALIDACIÓN DE UNICIDAD DEL EXPEDIENTE (GLOBAL - CORREGIDO) 🔥
-            // Verificamos si ya existe un expediente con este número en CUALQUIER constancia.
-            $expedienteExistente = Expediente::where('numero_expediente', $numeroExpedienteNormalizado)->exists();
-            
-            if ($expedienteExistente) {
-                // Si ya existe, lanzamos un error de validación global.
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'numero_expediente' => 'Este número de expediente ya existe en el sistema. Por favor, utiliza uno diferente.',
-                ]);
-            }
-            
-            // 5. OBTENER Y PROCESAR DATOS (Sin cambios)
-            list($columnasOrdenadas, $tablaPivoteada, $datosCrudos) = $this->obtenerYProcesarDatosParaReporte($request);
-
-            // 6. CREAR EL NUEVO EXPEDIENTE (Ahora sabemos que es seguro crearlo)
-            $rangoFechas = Carbon::parse($validated['fecha_desde'])->format('d/m/Y') . ' - ' . Carbon::parse($validated['fecha_hasta'])->format('d/m/Y');
-            $expediente = Expediente::create([
-                'constancia_id' => $constancia->id, // Usamos el ID de la constancia encontrada o recién creada
-                'numero_expediente' => $numeroExpedienteNormalizado,
-                'generado_por_user_id' => auth()->id(),
-                'rango_fechas_descripcion' => $rangoFechas,
-            ]);
-
-            // 7. VINCULAR DATOS Y REGISTRAR ACCIÓN (Sin cambios)
-            $datosParaPivot = $datosCrudos->map(fn($dato) => ['expediente_id' => $expediente->id, 'dato_unificado_id' => $dato->id]);
-            DB::table('expediente_datos')->insert($datosParaPivot->toArray());
-
-            AccionUsuario::create([
-                'user_id' => auth()->id(),
-                'tipo_accion' => 'GENERACION_EXPEDIENTE',
-                'referencia_id' => $expediente->id,
-                'referencia_tipo' => Expediente::class,
-            ]);
-
-            DB::commit(); // Confirmamos todos los cambios en la base de datos
-
-            // 8. GENERAR Y DESCARGAR EL EXCEL (Sin cambios)
-            $spreadsheet = new Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-            // ... (Tu código para llenar el Excel va aquí, está perfecto) ...
-            $columnaLetra = 'A';
-            foreach ($columnasOrdenadas as $columna) { 
-                $sheet->setCellValue($columnaLetra . '1', $columna->nombre_display);
-                $columnaLetra++;
-            }
-            $filaNumero = 2;
-            foreach ($tablaPivoteada as $filaDatos) { 
-                $columnaLetra = 'A';
-                foreach ($columnasOrdenadas as $columna) {
-                    $valor = $filaDatos['datos'][$columna->id] ?? '';
-                    $sheet->setCellValue($columnaLetra . $filaNumero, $valor);
-                    $columnaLetra++;
-                }
-                $filaNumero++;
-            }
-
-            $nombreArchivo = "EXP_{$numeroExpedienteNormalizado}.xlsx";
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            header('Content-Disposition: attachment;filename="' . $nombreArchivo . '"');
-            header('Cache-Control: max-age=0');
-            
-            $writer = new Xlsx($spreadsheet);
-            $writer->save('php://output');
-            exit;
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            // Capturamos el error de validación que lanzamos manualmente
-            DB::rollBack();
-            return redirect()->back()->withErrors($e->errors())->withInput();
-        } catch (\Exception $e) {
-            // Capturamos cualquier otro error inesperado
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Ocurrió un error inesperado: ' . $e->getMessage())->withInput();
-        }
-    }
     private function obtenerYProcesarDatosParaReporte(Request $request): array
     {
         $userId = $request->input('user_id');

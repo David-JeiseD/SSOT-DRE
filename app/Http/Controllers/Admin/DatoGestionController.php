@@ -46,97 +46,113 @@ class DatoGestionController extends Controller
      */
     public function show(User $user)
     {
+        // 1. Obtenemos todas las columnas
         $todasLasColumnas = ColumnaMaestra::get();
         
-        // Define torden de  la visualiacion de los elementos
+        // 2. Definimos el orden de visualización de los elementos
         $ordenInicio = ['meses', 'ano', 'total_remuneracion', 'total_descuento', 'observacion'];
-        $ordenFinal = ['ref_mov', 'reint_', 'neto_a_pagar'];
-
+        $ordenFinal = ['reint_', 'neto_a_pagar']; // 'reint_' y 'liquido'
+    
         $columnasOrdenadas = $todasLasColumnas->sortBy(function ($columna) use ($ordenInicio, $ordenFinal) {
             $nombre = $columna->nombre_normalizado;
-
-            // Check in INICIO group
+    
+            // Grupo de INICIO
             $posicionInicio = array_search($nombre, $ordenInicio);
             if ($posicionInicio !== false) {
-                return $posicionInicio;
+                return $posicionInicio; // Ordena como 0, 1, 2, ...
             }
-
-            // Check in FINAL group
+    
+            // Grupo FINAL
             $posicionFinal = array_search($nombre, $ordenFinal);
             if ($posicionFinal !== false) {
-                return 1000 + $posicionFinal;
+                return 1000 + $posicionFinal; // Ordena como 1000, 1001, ... para ponerlos al final
             }
-
-            // Everything else goes in the middle (filler columns)
+    
+            // Columnas de "relleno" van en el medio
             return 500;
         });
-
-        // 2. Obtenemos todos los datos del usuario.
+    
+        // 3. Obtenemos y pivotamos los datos del usuario (sin cambios)
         $datosCrudos = DatoUnificado::where('user_id', $user->id)
             ->orderBy('fecha_registro', 'desc')
             ->get();
-
-        // 3. Agrupamos los datos por 'id_fila_origen' (pivotamos)
+        
         $tabla = [];
         foreach ($datosCrudos as $dato) {
             $claveFila = $dato->id_fila_origen; 
-            
             if (!isset($tabla[$claveFila])) {
-                $tabla[$claveFila] = [
-                    'fecha' => $dato->fecha_registro,
-                    'datos' => []
-                ];
+                $tabla[$claveFila] = ['fecha' => $dato->fecha_registro, 'datos' => []];
             }
             $tabla[$claveFila]['datos'][$dato->columna_maestra_id] = $dato->valor;
         }
-
+    
+        // 4. Obtenemos los IDs para el cálculo (sin cambios)
+        $idColumnasCalculo = ColumnaMaestra::whereIn('nombre_normalizado', [
+            'total_remuneracion', 
+            'total_descuento',
+            'reint_',
+            'neto_a_pagar'
+        ])->pluck('id', 'nombre_normalizado');
+    
+        // 5. Devolvemos los datos a la vista
         return view('admin.gestion-datos.show', [
             'usuario' => $user,
-            'columnas' => $columnasOrdenadas->values(),
+            // 🔥 ========================================================== 🔥
+            // 🔥 CORRECCIÓN: Quitamos el ->values() para preservar el orden 🔥
+            'columnas' => $columnasOrdenadas,
+            // 🔥 ========================================================== 🔥
             'tabla' => $tabla,
+            'idColumnasCalculo' => $idColumnasCalculo,
         ]);
     }
-
     /**
      * Almacena un nuevo registro de pago completo para un usuario.
      */
     public function store(Request $request, User $user)
     {
-        \Log::info('[v0] store() called', ['user_id' => $user->id, 'request_data' => $request->all()]);
-
         // 1. Buscamos los IDs de las columnas clave
-        $colAnioId = ColumnaMaestra::where('nombre_normalizado', 'ano')->value('id');
-        $colMesesId = ColumnaMaestra::where('nombre_normalizado', 'meses')->value('id');
+        $columnasClave = ColumnaMaestra::whereIn('nombre_normalizado', [
+            'ano', 'meses', 'total_remuneracion', 'total_descuento', 'reint_', 'neto_a_pagar'
+        ])->pluck('id', 'nombre_normalizado');
+
+        $colAnioId = $columnasClave->get('ano');
+        $colMesesId = $columnasClave->get('meses');
 
         if (!$colAnioId || !$colMesesId) {
-            \Log::error('[v0] Missing master columns', ['ano_id' => $colAnioId, 'meses_id' => $colMesesId]);
             return response()->json(['message' => 'Las columnas maestras "AÑO" o "MESES" no existen.'], 500);
         }
 
         // 2. Validamos los datos de entrada
-        $validated = $request->validate([
+        $request->validate([
             "datos.{$colAnioId}" => 'required|numeric|digits:4',
             "datos.{$colMesesId}" => 'required|string|max:50',
             'datos' => 'required|array|min:2',
         ]);
 
         $nuevosDatos = $request->input('datos');
-        $anio = $nuevosDatos[$colAnioId];
-        $mes = strtolower(trim($nuevosDatos[$colMesesId]));
-
+        
         DB::beginTransaction();
         try {
-            // 3. Creamos un nuevo ID único para esta fila
-            $idFilaOrigen = (string) Str::uuid();
+            // 🔥 3. LÓGICA DE CÁLCULO PARA NUEVAS FILAS 🔥
+            $remun = (float)($nuevosDatos[$columnasClave->get('total_remuneracion')] ?? 0);
+            $desc = (float)($nuevosDatos[$columnasClave->get('total_descuento')] ?? 0);
+            $reint = (float)($nuevosDatos[$columnasClave->get('reint_')] ?? 0);
+            
+            // Calculamos y añadimos el líquido al array de datos a guardar
+            if ($columnasClave->has('neto_a_pagar')) {
+                $nuevosDatos[$columnasClave->get('neto_a_pagar')] = ($remun + $reint) - $desc;
+            }
 
-            // 4. Use Spanish month mapping instead of Carbon::parse() which fails with Spanish month names
+            // 4. Creamos ID y fecha de registro
+            $idFilaOrigen = (string) Str::uuid();
+            $anio = $nuevosDatos[$colAnioId];
+            $mes = strtolower(trim($nuevosDatos[$colMesesId]));
+            
             if (!isset($this->mesesEnEspanol[$mes])) {
-                throw new \Exception("El mes '{$mes}' no es válido. Use nombres de mes en español (ej: enero, febrero, marzo, etc.)");
+                throw new \Exception("El mes '{$mes}' no es válido.");
             }
             $numeroMes = $this->mesesEnEspanol[$mes];
             $fechaRegistro = Carbon::create($anio, $numeroMes, 1)->toDateString();
-
-            \Log::info('[v0] Creating record', ['id_fila_origen' => $idFilaOrigen, 'fecha' => $fechaRegistro, 'mes' => $mes]);
 
             // 5. Iteramos y guardamos cada nuevo dato
             $datosGuardados = [];
@@ -155,7 +171,6 @@ class DatoGestionController extends Controller
 
             DB::commit();
 
-            // 6. Devolvemos la fila creada para que el frontend la pueda mostrar
             return response()->json([
                 'message' => 'Registro creado exitosamente.',
                 'id_fila_origen' => $idFilaOrigen,
@@ -164,7 +179,6 @@ class DatoGestionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('[v0] Error saving record', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'No se pudo crear el registro: ' . $e->getMessage()], 500);
         }
     }

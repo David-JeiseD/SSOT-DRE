@@ -7,6 +7,8 @@ use App\Services\IngestaService; // <-- Importamos nuestro futuro servicio
 use App\Models\TipoDocumento;
 use App\Models\User;
 use Illuminate\Support\Str;
+use App\Events\IngestaCompletada;
+
 class IngestaController extends Controller
 {
     protected $ingestaService;
@@ -33,7 +35,8 @@ class IngestaController extends Controller
     {
         $validated = $request->validate([
             'dni' => 'required|digits:8',
-            'nombre' => 'required|string|max:255',
+            'nombre' => 'required|string|max:255',  
+            'codigomodular' => 'nullable|string|max:255',
             'archivo' => 'required|file|mimes:xlsx,xls|max:10240',
         ]);
 
@@ -41,10 +44,16 @@ class IngestaController extends Controller
             ['dni' => $validated['dni']],
             [
                 'name' => $validated['nombre'], 
+                'codigomodular' => $validated['codigomodular'],
                 'email' => $validated['dni'].'@placeholder.com', 
                 'password' => bcrypt(Str::random(10))
             ]
         );
+        if (!$usuarioDeDatos->wasRecentlyCreated && $validated['codigomodular']) {
+            $usuarioDeDatos->codigomodular = $validated['codigomodular'];
+            $usuarioDeDatos->save();
+        }
+
 
         try {
             $resultado = $this->ingestaService->procesarArchivo(
@@ -53,6 +62,8 @@ class IngestaController extends Controller
                 auth()->user()
             );
 
+            IngestaCompletada::dispatch();
+            
             $mensaje = "Archivo procesado. Se procesaron {$resultado['filas_procesadas']} filas nuevas. " .
                    "Se crearon un total de {$resultado['registros_creados']} registros individuales. " .
                    "Se omitieron {$resultado['filas_omitidas']} filas por ser duplicadas o no significativas.";

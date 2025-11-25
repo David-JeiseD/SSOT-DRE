@@ -179,4 +179,24 @@ class UserController extends Controller
 
         return view('admin.users.detalle', compact('user'));
     }
+    public function storeMinimal(Request $request)
+    {
+        $validated = $request->validate([
+            'dni' => 'required|digits:8|unique:users,dni',
+            'nombre' => 'required|string|max:255',
+            'codigomodular' => 'required|string|max:255',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['nombre'],
+            'dni' => $validated['dni'],
+            'codigomodular' => $validated['codigomodular'],
+            'email' => $validated['dni'] . '@placeholder.com', // Email temporal
+            'password' => bcrypt(Str::random(10))
+        ]);
+
+        // Redirigimos a la página de ingesta con un mensaje de éxito
+        return redirect()->route('ingesta.create')
+            ->with('success', "Usuario '{$user->name}' creado exitosamente. Ahora puedes buscarlo en el Módulo de Gestión de Datos para añadir sus registros.");
+    }
 }

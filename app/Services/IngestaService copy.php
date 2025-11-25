@@ -64,61 +64,39 @@ class IngestaService
             return '';
         }
     
-        // 🔥 ========================================================== 🔥
-        // 🔥 PASO 1: LIMPIEZA PREVIA UNIVERSAL 🔥
-        // ========================================================== 🔥
-        // Quitamos acentos y caracteres especiales
         $name = strtolower(Str::ascii(trim($name)));
-        
-        // Reemplazamos caracteres comunes de puntuación por un espacio
-        $name = preg_replace('/[.,:()\/]/', ' ', $name);
-        
-        // Reemplazamos múltiples espacios o guiones por un solo espacio
-        $name = preg_replace('/[\s-]+/', ' ', $name);
-        
-        // Quitamos cualquier basura restante que no sean letras, números o espacios
-        $cleanedName = trim(preg_replace('/[^a-z0-9\s]/', '', $name));
-
-
-        // 🔥 ========================================================== 🔥
-        // 🔥 PASO 2: DICCIONARIO DE ALIAS EXPANDIDO 🔥
-        // Ahora las variaciones no necesitan puntos ni caracteres raros.
-        // ========================================================== 🔥
+    
+        // --- 🔥 LÓGICA DE ALIAS ---
+        // Clave: El nombre normalizado canónico que queremos.
+        // Valor: Un array de posibles variaciones que la gente podría escribir.
         $aliases = [
-            'meses'              => ['mes', 'meses'],
-            'ano'                => ['ano', 'año', 'annio', 'anio'],
-            'total_remuneracion' => ['t remun', 'tremun', 'total rem', 'rem', 'remun', 'total remuneracion', 't rem', 'remuneracion'],
-            'total_descuento'    => ['t desc', 'tdesc', 'total desc', 'desc', 'descuento', 'total descuento', 't des'],
-            'neto_a_pagar'       => ['liquido', 't liquido', 'neto', 'neto a pagar', 't liq'],
-            'reint_'             => ['reint', 'reintegro'],
-            'observacion'        => ['observacion', 'obs', 'observ'],
-            'ley_19990'          => ['ley 19990', 'b ley 19990'],
-            'ley_20530'          => ['ley 20530', 'a ley 20530'],
-            'afp'                => ['c afp'],
-            'fonavi'             => ['fonavi'],
-            'du_037_94'          => ['d u 037-94', 'du 037-94', 'd u 037 94'],
-            'du_019_94'          => ['d u 019-94', 'du 019-94', 'd u 019 94'],
-            'du_090_96'          => ['d u 090-96', 'du 090-96', 'd u 090 96'],
-            'du_073_97'          => ['d u 073-97', 'du 073-97', 'd u 073 97'],
-            'du_011_99'          => ['d u 011-99', 'du 011-99', 'd u 011 99'],
-            'aguilesc'           => ['agui esc', 'aguil esc', 'aguinaldo escolar'],
-            'bespec'             => ['b espec', 'bonif especial', 'b esp'],
-            'ds_065_03'          => ['ds 065-03', 'ds 065 03'],
-            'ref-mov'            => ['ref-mov', 'ref mov', 'refrigerio y movilidad', 'ref movilidad'],
+            'total_remuneracion' => ['t.remun', 't remun', 'total rem', 'total remuneracion'],
+            'total_descuento'    => ['t.desc', 't desc', 'total desc', 'total descuento'],
+            'neto_a_pagar'       => ['liquido', 'líquido', 't.liquido', 'neto'],
+            'ley_19990'          => ['ley 19990', 'b,ley 19990'],
+            'ley_20530'          => ['ley 20530', 'a,ley 20530'],
+            'afp'                => ['c,afp'],
+            
+            // ... puedes añadir todas las variaciones que se te ocurran aquí
         ];
     
-        // Buscamos una coincidencia exacta en el diccionario de alias
         foreach ($aliases as $canonical => $variations) {
-            if (in_array($cleanedName, $variations)) {
+            // Pre-limpiamos las variaciones para comparar
+            $cleanedVariations = array_map(function($v) {
+                return preg_replace('/[^a-z0-9]+/', '', $v);
+            }, $variations);
+    
+            // Limpiamos el nombre de entrada de la misma manera
+            $cleanedInput = preg_replace('/[^a-z0-9]+/', '', $name);
+    
+            if (in_array($cleanedInput, $cleanedVariations)) {
                 return $canonical; // ¡Encontrado! Devolvemos el nombre canónico.
             }
         }
-        
-        // 🔥 ========================================================== 🔥
-        // 🔥 PASO 3: NORMALIZACIÓN FINAL (SOLO SI NO HAY COINCIDENCIA) 🔥
-        // ========================================================== 🔥
-        // Si no se encontró en los alias, convertimos los espacios a guiones bajos
-        return str_replace(' ', '_', $cleanedName);
+        // --- 🔥 FIN DE LA LÓGICA DE ALIAS ---
+    
+        // Si no se encontró en los alias, usamos la normalización genérica
+        return preg_replace('/[^a-z0-9]+/', '_', $name);
     }
 
     private function processAndMapColumns(array $headerRow): array

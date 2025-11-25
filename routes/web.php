@@ -116,6 +116,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/admin/plantillas/generar-personalizada', [PlantillaController::class, 'generarPersonalizada'])->name('admin.plantillas.generarPersonalizada');
         Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
         Route::get('/expedientes/{expediente}/pdf', [ExpedienteController::class, 'descargarPdf'])->name('expedientes.pdf');
+        Route::post('/users/store-minimal', [UserController::class, 'storeMinimal'])->name('users.storeMinimal');
     });
 
 });

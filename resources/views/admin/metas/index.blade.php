@@ -58,7 +58,7 @@
                                 <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
                                     <p class="font-bold text-gray-800">{{ Carbon\Carbon::create()->month($meta->mes)->translatedFormat('F') }} {{ $meta->anio }}</p>
                                     <p class="text-2xl font-bold text-indigo-600">{{ $meta->cantidad }}</p>
-                                    {{-- 🔥 CAMBIO 2: Texto actualizado para mayor claridad --}}
+                                    
                                     <p class="text-xs text-gray-500">expedientes</p>
                                 </div>
                             @endforeach

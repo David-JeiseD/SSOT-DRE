@@ -18,7 +18,7 @@
         </div>
 
         <!-- Alertas -->
-        @include('partials.alerts') {{-- Asumo que tienes un parcial para las alertas --}}
+        @include('partials.alerts') 
 
         <!-- Tabla de Columnas -->
         <div class="bg-white rounded-2xl shadow-lg overflow-hidden">

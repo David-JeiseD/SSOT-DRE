@@ -109,32 +109,32 @@
                 <!-- 🔥 CAMBIO 3: Historial Detallado adaptado a los nuevos tipos de acción -->
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
                     <h3 class="text-2xl font-bold text-gray-700 mb-6">Log de Actividad del Periodo</h3>
-                    <div class="space-y-4">
-                    @forelse($resultados['detalles'] as $accion)
-    <div class="bg-slate-50 p-4 rounded-lg border border-gray-200">
-        <div class="flex flex-wrap justify-between items-center gap-4">
-            <div class="flex-grow flex items-center gap-4">
-                <span class="text-xs font-semibold uppercase px-3 py-1 rounded-full
-                    @if($accion->tipo_accion == 'GENERACION_EXPEDIENTE') bg-green-100 text-green-800
-                    @elseif($accion->tipo_accion == 'EDICION_DATO_CRUDO') bg-yellow-100 text-yellow-800
-                    @elseif($accion->tipo_accion == 'ELIMINACION_DATO_CRUDO') bg-red-100 text-red-800
-                    @else bg-gray-100 text-gray-800
-                    @endif
-                ">
-                    {{ str_replace('_', ' ', $accion->tipo_accion) }}
-                </span>
-                <p class="text-sm text-gray-500">{{ $accion->created_at->format('d/m/Y H:i A') }}</p>
-            </div>
-        </div>
-        <!-- 🔥 Usamos el nuevo accesor aquí, dentro de un div para darle formato 🔥 -->
-        <div class="w-full mt-2">
-            <div class="text-sm text-gray-700 bg-slate-100 p-3 rounded-lg border">
-                {!! $accion->descripcion_html !!}
-            </div>
-        </div>
-    </div>
-@empty
-                             <div class="text-center py-10">
+                        <div class="space-y-4">
+                        @forelse($resultados['detalles'] as $accion)
+                            <div class="bg-slate-50 p-4 rounded-lg border border-gray-200">
+                                <div class="flex flex-wrap justify-between items-center gap-4">
+                                    <div class="flex-grow flex items-center gap-4">
+                                        <span class="text-xs font-semibold uppercase px-3 py-1 rounded-full
+                                            @if($accion->tipo_accion == 'GENERACION_EXPEDIENTE') bg-green-100 text-green-800
+                                            @elseif($accion->tipo_accion == 'EDICION_DATO_CRUDO') bg-yellow-100 text-yellow-800
+                                            @elseif($accion->tipo_accion == 'ELIMINACION_DATO_CRUDO') bg-red-100 text-red-800
+                                            @else bg-gray-100 text-gray-800
+                                            @endif
+                                        ">
+                                            {{ str_replace('_', ' ', $accion->tipo_accion) }}
+                                        </span>
+                                        <p class="text-sm text-gray-500">{{ $accion->created_at->format('d/m/Y H:i A') }}</p>
+                                    </div>
+                                </div>
+                                <!-- 🔥 Usamos el nuevo accesor aquí, dentro de un div para darle formato 🔥 -->
+                                <div class="w-full mt-2">
+                                    <div class="text-sm text-gray-700 bg-slate-100 p-3 rounded-lg border">
+                                        {!! $accion->descripcion_html !!}
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                                <div class="text-center py-10">
                                 <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
                                 <p class="text-center text-gray-500 py-4">No se encontraron acciones registradas en el periodo seleccionado.</p>
                             </div>

@@ -8,7 +8,9 @@
                 <!-- Logo Section -->
                 <div class="logo-container">
                     <div class="d-flex justify-content-center">
-                        <img src="{{ asset('images/icon-256x256.png') }}" alt="LOGIN" class="img-fluid">
+                        
+                        <img src="{{ asset('images/ambos.png') }}" alt="Logo" class="img-fluid">
+                        
                     </div>
                     <h2 class="page-title mt-3">INICIA SESION </h2>
                 </div>

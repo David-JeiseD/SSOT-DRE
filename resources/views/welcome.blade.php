@@ -317,8 +317,8 @@
                 <div>
                     <h3 class="text-lg font-semibold mb-4">Contacto</h3>
                     <ul class="space-y-2 text-gray-400">
-                        <li>📧 info@expedientespro.com</li>
-                        <li>📞 +51 999 888 777</li>
+                        <li>📧 rcoronel@drehuanuco.com</li>
+                        <li>📞 +51 962 820 661</li>
                         <li>📍 Huánuco, Perú</li>
                     </ul>
                 </div>

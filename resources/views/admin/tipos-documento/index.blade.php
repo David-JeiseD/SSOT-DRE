@@ -24,33 +24,8 @@
                 @endrole
             </div>
         </div>
-
-        <!-- Alertas de Sesión (Éxito y Error) -->
-        @if(session('success'))
-            <div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative" role="alert">
-                <strong class="font-bold">¡Éxito!</strong>
-                <span class="block sm:inline">{{ session('success') }}</span>
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
-                <strong class="font-bold">¡Error!</strong>
-                <span class="block sm:inline">{{ session('error') }}</span>
-            </div>
-        @endif
         
-        <!-- Alerta de Errores de Validación (para los modales) -->
-        @if ($errors->any())
-            <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
-                <strong class="font-bold">Por favor, corrige los errores:</strong>
-                <ul class="mt-2 list-disc list-inside">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
+        @include('partials.alerts')
         <!-- Stats Cards -->
         <div class="grid md:grid-cols-3 gap-6 mb-8">
             {{-- Total de Tipos --}}
@@ -91,7 +66,9 @@
             <div class="bg-white rounded-2xl shadow-xl p-12 text-center">
                 <h3 class="text-xl font-semibold text-gray-800 mb-2">No hay tipos registrados</h3>
                 <p class="text-gray-600 mb-6">Comienza creando tu primer tipo de documento.</p>
+                @role('admin')
                 <button onclick="openModal('modalNuevoTipo')" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg">Crear Primer Tipo</button>
+                @endrole
             </div>
         @endif
     </div>

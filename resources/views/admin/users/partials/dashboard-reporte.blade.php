@@ -9,7 +9,7 @@
         <div class="bg-white rounded-xl shadow p-6"><p class="text-sm text-gray-500">Usuarios Totales</p><p class="text-3xl font-bold">{{ $stats['totalUsuarios'] }}</p></div>
         <div class="bg-white rounded-xl shadow p-6"><p class="text-sm text-gray-500">Acciones Totales</p><p class="text-3xl font-bold">{{ $stats['totalAcciones'] }}</p></div>
         <div class="bg-white rounded-xl shadow p-6"><p class="text-sm text-gray-500">Usuario Más Activo</p><p class="text-xl font-bold text-indigo-600 truncate">{{ optional($stats['usuarioMasActivo'])->name ?? 'N/A' }}</p></div>
-        <div class="bg-white rounded-xl shadow p-6"><p class="text-sm text-gray-500">Última Actividad</p><p class="text-xl font-bold">{{ optional($stats['ultimaActividad'])->created_at->diffForHumans() ?? 'N/A' }}</p></div>
+        <div class="bg-white rounded-xl shadow p-6"><p class="text-sm text-gray-500">Última Actividad</p><p class="text-xl font-bold">{{ optional($stats['ultimaActividad'])->created_at ?? 'N/A' }}</p></div>
     </div>
 
     <!-- Tarjetas de Usuarios Individuales -->

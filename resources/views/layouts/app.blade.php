@@ -192,19 +192,46 @@
                                 </svg>
                                 Gestion de Usuarios
                             </a>
-                            <a href="{{ route('admin.reportes.metas.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
-                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                </svg>
-                                Reporte Metas
-                            </a>
-                            <a href="{{ route('admin.metas.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
-                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                                Asignar Metas
-                            </a>
-                            <a href="{{ route('admin.columnas-maestras.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
+                            <div class="relative">
+                                <button onclick="toggleMetasDropdown()" class="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors duration-200 focus:outline-none">
+                                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                    <span class="ml-2">Metas</span>
+                                    <svg class="w-4 h-4 transition-transform duration-200" id="metas-dropdown-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div id="metas-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                                    <a href="{{ route('admin.reportes.metas.index') }}" class="block px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200">
+                                        Reporte Metas
+                                    </a>
+                                    <a href="{{ route('admin.metas.index') }}" class="block px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200">
+                                        Asignar Metas
+                                    </a>
+                                </div>
+                            </div>
+
+                            <script>
+                                function toggleMetasDropdown() {
+                                    const menu = document.getElementById('metas-dropdown-menu');
+                                    const arrow = document.getElementById('metas-dropdown-arrow');
+                                    
+                                    menu.classList.toggle('hidden');
+                                    arrow.classList.toggle('rotate-180');
+                                }
+
+                                // Close dropdown when clicking outside
+                                document.addEventListener('click', function(event) {
+                                    const dropdown = document.getElementById('metas-dropdown-menu');
+                                    const button = event.target.closest('button');
+                                    
+                                    if (!button || button.getAttribute('onclick') !== 'toggleMetasDropdown()') {
+                                        dropdown.classList.add('hidden');
+                                        document.getElementById('metas-dropdown-arrow').classList.remove('rotate-180');
+                                    }
+                                });
+                            </script>  <a href="{{ route('admin.columnas-maestras.index') }}" class="text-gray-600 hover:text-blue-600 transition-colors duration-200 flex items-center">
                                 <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                 </svg>

@@ -16,7 +16,7 @@
         @include('partials.alerts')
 
         <div class="max-w-4xl mx-auto mb-6 text-center">
-            <button type="button" onclick="openModal('modalNuevoUsuario')" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-lg transform hover:scale-105 transition">
+            <button type="button" onclick="openModal('modalNuevoUsuario')" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-700 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-lg transform hover:scale-105 transition">
                 ¿Es un usuario nuevo sin datos históricos? Haz clic aquí para registrarlo.
             </button>
         </div>
@@ -25,7 +25,7 @@
         
         <div class="max-w-4xl mx-auto">
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6">
+                <div class="bg-gradient-to-r from-indigo-600 to-blue-700 px-8 py-6">
                     <h2 class="text-xl font-semibold text-white">Información del Documento a Procesar</h2>
                 </div>
                
@@ -66,7 +66,7 @@
                     </div>
 
                     <div class="mt-8 text-right">
-                        <button type="submit" class="inline-flex items-center px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition shadow-lg">
+                        <button type="submit" class="inline-flex items-center px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition shadow-lg">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                             Subir y Procesar
                         </button>
